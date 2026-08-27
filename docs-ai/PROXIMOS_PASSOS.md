@@ -19,6 +19,42 @@ animacao vira captura real.
 
 E' o passo com chance de mudar a ordem de grandeza do score.
 
+## 4. Ensinar o fluxo de missao (maior potencial de escala)
+
+Nao e' habilidade que falta ao agente, e' **protocolo**. As missoes do primeiro
+rank sao coisas que ele ja faz por acidente (acertar o bumper 8 vezes); o que
+ele desconhece e' o ritual de **acertar o mission target (16) e depois passar
+pelo launch pad (11)** para que os acertos passem a contar.
+
+Caminho sugerido:
+
+1. expor no estado: rank, progresso no rank, missao ativa e combustivel;
+2. recompensa em camadas - pontos, mais um bonus por luz de progresso acesa,
+   mais um bonus grande por missao completada;
+3. avaliar com `bmax` (bolas infinitas) para separar "aprender a pontuar" de
+   "aprender a nao morrer" - sao dois problemas e hoje estao misturados.
+
+## 5. Multiplicadores (barato e escala muito)
+
+- **Field Multiplier**: derrubar 3 alvos multiplica os pontos de ataque em
+  2x, 3x, 5x e **10x**;
+- **Weapon upgrade**: 3 luzes da reentry lane dobram o bumper, ate' 3 vezes.
+
+Sao alvos fisicos que o agente ja consegue acertar. Basta que a recompensa
+sinalize que valem mais do que parecem no curto prazo.
+
+## 6. Verificar se o agente descobre o loop do launch pad
+
+As regras mencionam pontuacao quase indefinida mandando a bola repetidamente a
+area do launch pad. Se ele achar isso sozinho, e' mais um caso de exploracao
+para documentar - na mesma familia do berco.
+
+## 7. Nudge, com cuidado
+
+`nudge::nudge_left/right/up` existe e nao esta exposto. Mas uso em sequencia
+gera falta: trava os controles e derruba a bola. So' expor junto com a
+penalidade modelada, senao o agente se sabota.
+
 ---
 
 # Como o jogo realmente pontua
