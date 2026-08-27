@@ -35,6 +35,7 @@ if _BIN not in sys.path:
     sys.path.insert(0, os.path.abspath(_BIN))
 
 import spacecadet_env as _core  # noqa: E402
+from visao import Visao, GRADE_L, GRADE_A, N_CANAIS  # noqa: E402
 
 # Limites observados em ~3,4 milhoes de passos de coleta.
 _LIM = {"x": 7.5, "y": 14.5, "v": 40.0, "luzes": 40.0, "mult": 6.0, "rel_y": 28.0}
@@ -47,7 +48,8 @@ class SpaceCadetEnv(gym.Env):
 
     def __init__(self, quadros_por_passo: int = 6, max_passos: int = 12000,
                  recompensa: str = "score", base_path: str = "",
-                 comprimir: bool = True, bonus_vivo: float = 0.0):
+                 comprimir: bool = True, bonus_vivo: float = 0.0,
+                 visao: bool = False):
         super().__init__()
         if recompensa not in ("score", "sobrevivencia"):
             raise ValueError("recompensa deve ser 'score' ou 'sobrevivencia'")
@@ -61,8 +63,18 @@ class SpaceCadetEnv(gym.Env):
         self.bonus_vivo = bonus_vivo
 
         self.action_space = spaces.Discrete(4)          # 00, 01, 10, 11
-        self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(15,), dtype=np.float32)
+        self.usa_visao = visao
+        if visao:
+            # A grade da o layout da mesa (onde estao bumpers, alvos, luzes);
+            # o vetor mantem os valores precisos que a grade quantiza.
+            self.observation_space = spaces.Dict({
+                "grade": spaces.Box(low=-1.0, high=1.0,
+                                    shape=(N_CANAIS, GRADE_A, GRADE_L), dtype=np.float32),
+                "vetor": spaces.Box(low=-1.0, high=1.0, shape=(15,), dtype=np.float32),
+            })
+        else:
+            self.observation_space = spaces.Box(
+                low=-1.0, high=1.0, shape=(15,), dtype=np.float32)
 
         if not _core.ativo():
             # O jogo procura o PINBALL.DAT primeiro no diretorio de trabalho.
@@ -79,6 +91,13 @@ class SpaceCadetEnv(gym.Env):
                     f"PINBALL.DAT esta em {os.path.abspath(_BIN)}")
         self._score_ant = 0
         self._passos = 0
+        self._visao = Visao(_core.inventario()) if visao else None
+
+    def _observacao(self, e):
+        vetor = self._obs(e)
+        if not self.usa_visao:
+            return vetor
+        return {"grade": self._visao.montar(e, _core.luzes_acesas()), "vetor": vetor}
 
     @staticmethod
     def _obs(e) -> np.ndarray:
@@ -106,7 +125,7 @@ class SpaceCadetEnv(gym.Env):
         e = _core.resetar()
         self._score_ant = e.score
         self._passos = 0
-        return self._obs(e), {"score": e.score}
+        return self._observacao(e), {"score": e.score}
 
     def step(self, action: int):
         esq = bool(action & 1)
@@ -129,7 +148,7 @@ class SpaceCadetEnv(gym.Env):
         truncado = self._passos >= self.max_passos
         info = {"score": e.score, "tempo_s": e.tempo_s,
                 "bolas_restantes": e.bolas_restantes}
-        return self._obs(e), float(rec), terminado, truncado, info
+        return self._observacao(e), float(rec), terminado, truncado, info
 
     def close(self):
         pass        # a thread do jogo vive enquanto o processo viver
