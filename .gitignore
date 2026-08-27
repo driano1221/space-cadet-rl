@@ -1,0 +1,10 @@
+# O fork instrumentado tem repositorio proprio (branch rl-instrumentation),
+# para manter a linhagem com o upstream e o diff legivel.
+SpaceCadetPinball/
+
+# dados gerados e artefatos de treino
+analise/dados/
+python/__pycache__/
+python/*.zip
+python/*.log
+*.pyc
