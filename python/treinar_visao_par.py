@@ -35,15 +35,18 @@ if __name__ == "__main__":
     passos = int(sys.argv[1]) if len(sys.argv) > 1 else 2_000_000
     tag = sys.argv[2] if len(sys.argv) > 2 else "visao"
     n_envs = int(sys.argv[3]) if len(sys.argv) > 3 else 6
+    recompensa = sys.argv[4] if len(sys.argv) > 4 else "score"
 
-    print(f"=== VISAO | {passos} passos | {n_envs} ambientes | {DEVICE} ===", flush=True)
+    print(f"=== VISAO | recompensa={recompensa} | {passos} passos | "
+          f"{n_envs} ambientes | {DEVICE} ===", flush=True)
     rng = np.random.default_rng(7)
     print("ANTES:", flush=True)
     sa, da = avaliar(lambda o: int(rng.integers(4)), 40, "aleatorio")
 
     venv = SubprocVecEnv([fabrica(i, quadros_por_passo=3, visao=True,
                                   max_passos=12000, comprimir=True,
-                                  bonus_vivo=0.0) for i in range(n_envs)])
+                                  bonus_vivo=0.0, recompensa=recompensa)
+                          for i in range(n_envs)])
     venv = VecNormalize(venv, norm_obs=False, norm_reward=True, clip_reward=10.0)
 
     m = PPO("MultiInputPolicy", venv, verbose=0, n_steps=1024, batch_size=512,

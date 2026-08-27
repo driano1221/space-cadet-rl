@@ -147,7 +147,10 @@ class SpaceCadetEnv(gym.Env):
         terminado = bool(e.fim)
         truncado = self._passos >= self.max_passos
         info = {"score": e.score, "tempo_s": e.tempo_s,
-                "bolas_restantes": e.bolas_restantes}
+                "bolas_restantes": e.bolas_restantes,
+                # posicao em pixels, para render externo (animacoes)
+                "tela_x": e.tela_x, "tela_y": e.tela_y,
+                "speed": e.bola_speed}
         return self._observacao(e), float(rec), terminado, truncado, info
 
     def close(self):
