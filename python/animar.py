@@ -50,43 +50,31 @@ def coletar(nome, segundos, pular=70):
         obs, _, term, trunc, info = env.step(pol(obs))
         n += 1
         if n % A_CADA == 0:
-            quadros.append((info["tela_x"], info["tela_y"], info["score"],
+            # captura o framebuffer do jogo e ja recorta a mesa, para o GIF
+            # nao ficar gigante
+            tela = env.capturar()
+            quadros.append((tela[:, :375].copy(), info["score"],
                             info["tempo_s"], info["speed"]))
         if term or trunc:
             obs, _ = env.reset()
     return quadros
 
 
-def montar(qa, ra, qb, rb, saida):
-    mesa = Dat(BAK).to_image(Dat(BAK).bitmap("table"))
-    W, H = mesa.size
-    fundo = Image.fromarray((np.asarray(mesa, dtype=float) * .8).astype("uint8"))
+def montar(qa, ra, qb, rb, saida, escala=0.62):
+    H, W = qa[0][0].shape[:2]
+    W2, H2 = int(W * escala), int(H * escala)
     imgs = []
-    rastros = [[], []]
-    for k, ((xa, ya, sa, ta, va), (xb, yb, sb, tb, vb)) in enumerate(zip(qa, qb)):
-        quadro = Image.new("RGB", (W * 2 + 30, H + 46), (16, 16, 16))
-        for i, (x, y, sc, t, vel, rot) in enumerate(
-                ((xa, ya, sa, ta, va, ra), (xb, yb, sb, tb, vb, rb))):
-            painel = fundo.copy()
-            dr = ImageDraw.Draw(painel)
-            rastro = rastros[i]
-            if x >= 0:
-                rastro.append((x, y))
-                del rastro[:-14]
-                for j in range(1, len(rastro)):
-                    f = j / len(rastro)
-                    dr.line([rastro[j-1], rastro[j]],
-                            fill=(int(255*f), int(80*f), int(20*f)),
-                            width=max(1, int(3*f)))
-                r = 5
-                dr.ellipse([x-r, y-r, x+r, y+r], fill=(255, 255, 90),
-                           outline=(30, 30, 30))
-            quadro.paste(painel, (10 + i * (W + 10), 34))
+    for (ta_img, sa, ta, va), (tb_img, sb, tb, vb) in zip(qa, qb):
+        quadro = Image.new("RGB", (W2 * 2 + 30, H2 + 46), (16, 16, 16))
+        for i, (tela, sc, t, vel, rot) in enumerate(
+                ((ta_img, sa, ta, va, ra), (tb_img, sb, tb, vb, rb))):
+            painel = Image.fromarray(tela).resize((W2, H2), Image.LANCZOS)
+            quadro.paste(painel, (10 + i * (W2 + 10), 34))
             d2 = ImageDraw.Draw(quadro)
-            d2.text((14 + i * (W + 10), 6), rot, fill=(255, 220, 120))
-            d2.text((14 + i * (W + 10), 20),
+            d2.text((14 + i * (W2 + 10), 6), rot, fill=(255, 220, 120))
+            d2.text((14 + i * (W2 + 10), 20),
                     f"score {sc:,}   v={vel:4.1f}   t={t:.0f}s", fill=(200, 200, 200))
-        imgs.append(quadro)
+        imgs.append(quadro.quantize(colors=192, method=Image.MEDIANCUT))
     imgs[0].save(saida, save_all=True, append_images=imgs[1:],
                  duration=int(1000 / FPS_GIF), loop=0, optimize=True)
     print(f"{saida}  |  {len(imgs)} quadros")

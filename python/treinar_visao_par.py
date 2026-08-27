@@ -18,16 +18,21 @@ def avaliar(politica, n=40, rotulo=""):
     """Avalia em um ambiente proprio, fora do vetorizado."""
     from spacecadet_gym import SpaceCadetEnv
     env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=12000)
-    sc, du = [], []
+    sc, du, rk, pg = [], [], [], []
     for _ in range(n):
         obs, _ = env.reset()
         term = trunc = False
+        rmax = pmax = 0
         while not (term or trunc):
             obs, _, term, trunc, info = env.step(politica(obs))
+            rmax = max(rmax, info.get("rank", 0))
+            pmax = max(pmax, info.get("progresso", 0))
         sc.append(info["score"]); du.append(info["tempo_s"])
+        rk.append(rmax); pg.append(pmax)
     print(f"  {rotulo}: mediana={int(np.median(sc))} media={int(np.mean(sc))} "
           f"dp={int(np.std(sc))} min={int(np.min(sc))} max={int(np.max(sc))} "
-          f"duracao={np.mean(du):.0f}s", flush=True)
+          f"duracao={np.mean(du):.0f}s rank={np.mean(rk):.1f}/9 "
+          f"prog={np.mean(pg):.1f}/18", flush=True)
     return sc, du
 
 
@@ -36,16 +41,22 @@ if __name__ == "__main__":
     tag = sys.argv[2] if len(sys.argv) > 2 else "visao"
     n_envs = int(sys.argv[3]) if len(sys.argv) > 3 else 6
     recompensa = sys.argv[4] if len(sys.argv) > 4 else "score"
+    # Peso da progressao. Calibrado para ~25% da recompensa total: forte o
+    # bastante para guiar, longe do que capturaria o objetivo (o bonus de 0,02
+    # chegou a 93% e o agente parou de jogar).
+    peso_prog = float(sys.argv[5]) if len(sys.argv) > 5 else 0.0
 
     print(f"=== VISAO | recompensa={recompensa} | {passos} passos | "
-          f"{n_envs} ambientes | {DEVICE} ===", flush=True)
+          f"{n_envs} ambientes | peso_prog={peso_prog} | {DEVICE} ===", flush=True)
     rng = np.random.default_rng(7)
     print("ANTES:", flush=True)
     sa, da = avaliar(lambda o: int(rng.integers(4)), 40, "aleatorio")
 
     venv = SubprocVecEnv([fabrica(i, quadros_por_passo=3, visao=True,
                                   max_passos=12000, comprimir=True,
-                                  bonus_vivo=0.0, recompensa=recompensa)
+                                  bonus_vivo=0.0, recompensa=recompensa,
+                                  peso_progresso=peso_prog,
+                                  peso_rank=peso_prog * 5)
                           for i in range(n_envs)])
     venv = VecNormalize(venv, norm_obs=False, norm_reward=True, clip_reward=10.0)
 

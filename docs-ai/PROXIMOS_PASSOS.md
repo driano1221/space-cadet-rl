@@ -55,6 +55,28 @@ para documentar - na mesma familia do berco.
 gera falta: trava os controles e derruba a bola. So' expor junto com a
 penalidade modelada, senao o agente se sabota.
 
+## 8. Tempo de reacao variavel (ideia do Adriano)
+
+Hoje o agente decide a cada 25 ms, sempre, com precisao perfeita. Um humano tem
+latencia de 200-300 ms e ela **varia**. Duas leituras, e as duas valem
+experimento:
+
+**Como handicap** - injetar atraso entre a decisao e a acao chegar ao jogo,
+para medir quanto do desempenho vem de reflexo sobre-humano e quanto vem de
+estrategia. Se o agente cair para o nivel humano com 250 ms de atraso, boa parte
+da vantagem dele e' velocidade, nao entendimento do jogo.
+
+**Como regularizacao** - variar o intervalo durante o treino (por exemplo,
+sortear entre 17 e 42 ms a cada episodio) forca o agente a nao depender de
+timing exato. E' analogo a domain randomization em robotica, e costuma produzir
+politicas mais robustas.
+
+Vale medir tambem a **curva de degradacao**: score em funcao do atraso imposto.
+Ela diz onde esta o limite entre "joga bem" e "so' reage rapido" - e e' um
+grafico bom de portfolio, porque situa o agente contra a capacidade humana.
+
+Depende do benchmark de resolucao ja feito (25 ms e' o otimo sem atraso).
+
 ---
 
 # Como o jogo realmente pontua

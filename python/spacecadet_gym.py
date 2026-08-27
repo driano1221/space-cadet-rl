@@ -49,7 +49,8 @@ class SpaceCadetEnv(gym.Env):
     def __init__(self, quadros_por_passo: int = 6, max_passos: int = 12000,
                  recompensa: str = "score", base_path: str = "",
                  comprimir: bool = True, bonus_vivo: float = 0.0,
-                 visao: bool = False):
+                 visao: bool = False,
+                 peso_progresso: float = 0.0, peso_rank: float = 0.0):
         super().__init__()
         if recompensa not in ("score", "sobrevivencia"):
             raise ValueError("recompensa deve ser 'score' ou 'sobrevivencia'")
@@ -61,6 +62,13 @@ class SpaceCadetEnv(gym.Env):
         # colapsa para a acao de menor variancia - ou seja, nunca apertar.
         self.comprimir = comprimir
         self.bonus_vivo = bonus_vivo
+        # Recompensa por progressao. As luzes de progresso sao o sinal denso
+        # (o agente ja acende ~11,5 das 18 por partida); a missao completa e'
+        # rara demais para treinar em cima sozinha.
+        self.peso_progresso = peso_progresso
+        self.peso_rank = peso_rank
+        self._prog_ant = 0
+        self._rank_ant = 1
 
         self.action_space = spaces.Discrete(4)          # 00, 01, 10, 11
         self.usa_visao = visao
@@ -124,6 +132,9 @@ class SpaceCadetEnv(gym.Env):
         super().reset(seed=seed)
         e = _core.resetar()
         self._score_ant = e.score
+        # zera os acumuladores de progressao junto com a partida
+        self._prog_ant = int(getattr(e, "progresso", 0))
+        self._rank_ant = int(getattr(e, "rank", 1))
         self._passos = 0
         return self._observacao(e), {"score": e.score}
 
@@ -144,9 +155,30 @@ class SpaceCadetEnv(gym.Env):
             # flippers em vez de jogar
             rec = 0.01
 
+        # --- progressao -------------------------------------------------
+        # Cada luz de progresso acesa vale `peso_progresso`; cada rank novo,
+        # `peso_rank`. Ao subir de rank as luzes zeram, entao o delta e'
+        # ignorado quando negativo, senao a subida viraria punicao.
+        prog = int(getattr(e, "progresso", 0))
+        rank = int(getattr(e, "rank", 1))
+        rec_prog = 0.0
+        if self.peso_progresso:
+            d = prog - self._prog_ant
+            if d > 0:
+                rec_prog += self.peso_progresso * d
+        if self.peso_rank and rank > self._rank_ant:
+            rec_prog += self.peso_rank * (rank - self._rank_ant)
+        rec_base = rec
+        rec += rec_prog
+        self._prog_ant, self._rank_ant = prog, rank
+
         terminado = bool(e.fim)
         truncado = self._passos >= self.max_passos
         info = {"score": e.score, "tempo_s": e.tempo_s,
+                "rank": rank, "progresso": prog,
+                # decomposicao da recompensa: e' o que revela captura do
+                # objetivo por um termo secundario
+                "rec_base": rec_base, "rec_prog": rec_prog,
                 "bolas_restantes": e.bolas_restantes,
                 # posicao em pixels, para render externo (animacoes)
                 "tela_x": e.tela_x, "tela_y": e.tela_y,
@@ -156,6 +188,11 @@ class SpaceCadetEnv(gym.Env):
                 "progresso": e.progresso, "progresso_total": e.progresso_total,
                 "combustivel": e.combustivel}
         return self._observacao(e), float(rec), terminado, truncado, info
+
+    def capturar(self):
+        """Quadro atual do jogo como array RGB (altura, largura, 3).
+        E' o framebuffer real: inclui flippers, luzes e sprites."""
+        return _core.capturar_tela()
 
     def close(self):
         pass        # a thread do jogo vive enquanto o processo viver
