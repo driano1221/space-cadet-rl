@@ -50,7 +50,9 @@ class SpaceCadetEnv(gym.Env):
                  recompensa: str = "score", base_path: str = "",
                  comprimir: bool = True, bonus_vivo: float = 0.0,
                  visao: bool = False,
-                 peso_progresso: float = 0.0, peso_rank: float = 0.0):
+                 peso_progresso: float = 0.0, peso_rank: float = 0.0,
+                 peso_alvo: float = 0.0, peso_rampa: float = 0.0,
+                 peso_missao: float = 0.0):
         super().__init__()
         if recompensa not in ("score", "sobrevivencia"):
             raise ValueError("recompensa deve ser 'score' ou 'sobrevivencia'")
@@ -67,6 +69,13 @@ class SpaceCadetEnv(gym.Env):
         # rara demais para treinar em cima sozinha.
         self.peso_progresso = peso_progresso
         self.peso_rank = peso_rank
+        # Fluxo de missao. Os pesos crescem com a raridade do evento, mas quem
+        # guia o aprendizado e' o mission_target (13,7 por partida); rampa
+        # (3,5) e missao completa (0,7) sao raros demais para carregar sozinhos.
+        self.peso_alvo = peso_alvo
+        self.peso_rampa = peso_rampa
+        self.peso_missao = peso_missao
+        self._ev_ant = (0, 0, 0)
         self._prog_ant = 0
         self._rank_ant = 1
 
@@ -135,6 +144,9 @@ class SpaceCadetEnv(gym.Env):
         # zera os acumuladores de progressao junto com a partida
         self._prog_ant = int(getattr(e, "progresso", 0))
         self._rank_ant = int(getattr(e, "rank", 1))
+        self._ev_ant = (int(getattr(e, "ev_mission_target", 0)),
+                        int(getattr(e, "ev_launch_ramp", 0)),
+                        int(getattr(e, "ev_missao_completa", 0)))
         self._passos = 0
         return self._observacao(e), {"score": e.score}
 
@@ -168,17 +180,32 @@ class SpaceCadetEnv(gym.Env):
                 rec_prog += self.peso_progresso * d
         if self.peso_rank and rank > self._rank_ant:
             rec_prog += self.peso_rank * (rank - self._rank_ant)
+        # --- fluxo de missao: premia os passos intermediarios -----------
+        ev = (int(getattr(e, "ev_mission_target", 0)),
+              int(getattr(e, "ev_launch_ramp", 0)),
+              int(getattr(e, "ev_missao_completa", 0)))
+        pesos = (self.peso_alvo, self.peso_rampa, self.peso_missao)
+        rec_ev = 0.0
+        for atual, ant, peso in zip(ev, self._ev_ant, pesos):
+            if peso and atual > ant:
+                rec_ev += peso * (atual - ant)
+        self._ev_ant = ev
+
         rec_base = rec
-        rec += rec_prog
+        rec += rec_prog + rec_ev
         self._prog_ant, self._rank_ant = prog, rank
 
         terminado = bool(e.fim)
         truncado = self._passos >= self.max_passos
         info = {"score": e.score, "tempo_s": e.tempo_s,
                 "rank": rank, "progresso": prog,
+                # eventos do fluxo de missao, acumulados no episodio
+                "ev_mission_target": int(getattr(e, "ev_mission_target", 0)),
+                "ev_launch_ramp": int(getattr(e, "ev_launch_ramp", 0)),
+                "ev_missao_completa": int(getattr(e, "ev_missao_completa", 0)),
                 # decomposicao da recompensa: e' o que revela captura do
                 # objetivo por um termo secundario
-                "rec_base": rec_base, "rec_prog": rec_prog,
+                "rec_base": rec_base, "rec_prog": rec_prog, "rec_ev": rec_ev,
                 "bolas_restantes": e.bolas_restantes,
                 # posicao em pixels, para render externo (animacoes)
                 "tela_x": e.tela_x, "tela_y": e.tela_y,

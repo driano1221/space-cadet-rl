@@ -19,6 +19,7 @@ def avaliar(politica, n=40, rotulo=""):
     from spacecadet_gym import SpaceCadetEnv
     env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=12000)
     sc, du, rk, pg = [], [], [], []
+    ev_alvo, ev_miss = [], []
     for _ in range(n):
         obs, _ = env.reset()
         term = trunc = False
@@ -29,10 +30,13 @@ def avaliar(politica, n=40, rotulo=""):
             pmax = max(pmax, info.get("progresso", 0))
         sc.append(info["score"]); du.append(info["tempo_s"])
         rk.append(rmax); pg.append(pmax)
+        ev_alvo.append(info.get("ev_mission_target", 0))
+        ev_miss.append(info.get("ev_missao_completa", 0))
     print(f"  {rotulo}: mediana={int(np.median(sc))} media={int(np.mean(sc))} "
           f"dp={int(np.std(sc))} min={int(np.min(sc))} max={int(np.max(sc))} "
           f"duracao={np.mean(du):.0f}s rank={np.mean(rk):.1f}/9 "
-          f"prog={np.mean(pg):.1f}/18", flush=True)
+          f"prog={np.mean(pg):.1f}/18 alvos={np.mean(ev_alvo):.1f} "
+          f"missoes={np.mean(ev_miss):.1f}", flush=True)
     return sc, du
 
 
@@ -45,9 +49,15 @@ if __name__ == "__main__":
     # bastante para guiar, longe do que capturaria o objetivo (o bonus de 0,02
     # chegou a 93% e o agente parou de jogar).
     peso_prog = float(sys.argv[5]) if len(sys.argv) > 5 else 0.0
+    # Fluxo de missao. Pesos calibrados pela decomposicao real da recompensa
+    # para ~20% do total: o mission_target (13,7 eventos por partida) e' quem
+    # guia; rampa e missao completa sao raros e entram com peso maior so' para
+    # nao sumirem na soma.
+    peso_alvo = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
 
     print(f"=== VISAO | recompensa={recompensa} | {passos} passos | "
-          f"{n_envs} ambientes | peso_prog={peso_prog} | {DEVICE} ===", flush=True)
+          f"{n_envs} ambientes | peso_prog={peso_prog} peso_alvo={peso_alvo} "
+          f"| {DEVICE} ===", flush=True)
     rng = np.random.default_rng(7)
     print("ANTES:", flush=True)
     sa, da = avaliar(lambda o: int(rng.integers(4)), 40, "aleatorio")
@@ -56,7 +66,10 @@ if __name__ == "__main__":
                                   max_passos=12000, comprimir=True,
                                   bonus_vivo=0.0, recompensa=recompensa,
                                   peso_progresso=peso_prog,
-                                  peso_rank=peso_prog * 5)
+                                  peso_rank=peso_prog * 5,
+                                  peso_alvo=peso_alvo,
+                                  peso_rampa=peso_alvo * 4,
+                                  peso_missao=peso_alvo * 20)
                           for i in range(n_envs)])
     venv = VecNormalize(venv, norm_obs=False, norm_reward=True, clip_reward=10.0)
 

@@ -1,6 +1,22 @@
-# Proximos passos (ordem acordada em 2026-08-27)
+# Proximos passos
 
-## 1. Medir o rank que o agente atinge hoje
+Situacao em 2026-08-27.
+
+| # | Passo | Status | Resultado |
+|---|---|---|---|
+| 1 | Medir o rank atual | **feito** | 11,6x mais pontos que o acaso, mesmo rank |
+| 2 | Expor `render::vscreen` | **feito** | captura real; GIF com flippers e luzes |
+| 3 | Recompensar progresso de rank | **feito, falhou** | sinal 180x mais esparso que o score |
+| 4 | Fluxo de missao | **feito, funcionou** | alvos +31% (p=0,030), score inalterado |
+| 5 | Multiplicadores (2x a 10x) | pendente | maior potencial de escala restante |
+| 6 | Loop do launch pad | pendente | verificar se o agente descobre sozinho |
+| 7 | Nudge, com penalidade de falta | pendente | acao que existe e nao esta exposta |
+| 8 | Tempo de reacao variavel | pendente | ideia do Adriano; handicap e regularizacao |
+| 9 | Escala de treino | pendente | 2,5M passos e' ~5% do orcamento tipico de Atari |
+
+---
+
+## 1. Medir o rank que o agente atinge hoje — CONCLUIDO
 
 Quantifica a distancia real ate' o recorde humano (126 milhoes). O rank e' legivel
 sem instrumentacao nova pesada: os grupos de luzes `middle_circle` (rank, 0-9) e
@@ -8,18 +24,18 @@ sem instrumentacao nova pesada: os grupos de luzes `middle_circle` (rank, 0-9) e
 `TPinballTable::find_component("middle_circle")` e respondem a
 `MessageCode::TLightGroupGetOnCount`.
 
-## 2. Expor `render::vscreen` e refazer o GIF
+## 2. Expor `render::vscreen` e refazer o GIF — CONCLUIDO
 
 O GIF atual desenha um circulo sobre o bitmap estatico da mesa: nao mostra
 flippers, luzes nem sprites. `render::vscreen` e' o framebuffer que o jogo
 compoe de fato (`render.h:40`, `gdrv_bitmap8*`). Expondo esses pixels, a
 animacao vira captura real.
 
-## 3. Recompensar progresso de rank e retreinar
+## 3. Recompensar progresso de rank — CONCLUIDO, NAO FUNCIONOU
 
 E' o passo com chance de mudar a ordem de grandeza do score.
 
-## 4. Ensinar o fluxo de missao (maior potencial de escala)
+## 4. Ensinar o fluxo de missao — CONCLUIDO, FUNCIONOU
 
 Nao e' habilidade que falta ao agente, e' **protocolo**. As missoes do primeiro
 rank sao coisas que ele ja faz por acidente (acertar o bumper 8 vezes); o que
@@ -54,6 +70,13 @@ para documentar - na mesma familia do berco.
 `nudge::nudge_left/right/up` existe e nao esta exposto. Mas uso em sequencia
 gera falta: trava os controles e derruba a bola. So' expor junto com a
 penalidade modelada, senao o agente se sabota.
+
+## 9. Escala de treino
+
+2,5M passos sao ~1,8M frames com `quadros_por_passo=3`. Projetos de Atari usam
+50M. Estamos com cerca de 5% do orcamento tipico, e nunca testamos se o
+desempenho satura ou continua subindo. E' o experimento mais simples que resta:
+mesma configuracao vencedora, 10M passos, e comparar.
 
 ## 8. Tempo de reacao variavel (ideia do Adriano)
 
