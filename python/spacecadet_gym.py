@@ -37,7 +37,7 @@ if _BIN not in sys.path:
 import spacecadet_env as _core  # noqa: E402
 
 # Limites observados em ~3,4 milhoes de passos de coleta.
-_LIM = {"x": 7.5, "y": 14.5, "v": 40.0, "luzes": 40.0, "mult": 6.0}
+_LIM = {"x": 7.5, "y": 14.5, "v": 40.0, "luzes": 40.0, "mult": 6.0, "rel_y": 28.0}
 
 
 class SpaceCadetEnv(gym.Env):
@@ -62,7 +62,7 @@ class SpaceCadetEnv(gym.Env):
 
         self.action_space = spaces.Discrete(4)          # 00, 01, 10, 11
         self.observation_space = spaces.Box(
-            low=-1.0, high=1.0, shape=(9,), dtype=np.float32)
+            low=-1.0, high=1.0, shape=(15,), dtype=np.float32)
 
         if not _core.ativo():
             # O jogo procura o PINBALL.DAT primeiro no diretorio de trabalho.
@@ -92,6 +92,13 @@ class SpaceCadetEnv(gym.Env):
             min(e.bolas_em_jogo, 3) / 3.0,
             min(e.luzes_acesas, _LIM["luzes"]) / _LIM["luzes"],
             min(e.multiplicador, _LIM["mult"]) / _LIM["mult"],
+            # estado dos flippers: e' na pa' que o timing decide a tacada
+            np.clip(e.flip_esq_ang, -1, 1),
+            np.clip(e.flip_dir_ang, -1, 1),
+            np.clip(e.bola_rel_esq_x / _LIM["x"], -1, 1),
+            np.clip(e.bola_rel_esq_y / _LIM["rel_y"], -1, 1),
+            np.clip(e.bola_rel_dir_x / _LIM["x"], -1, 1),
+            np.clip(e.bola_rel_dir_y / _LIM["rel_y"], -1, 1),
         ], dtype=np.float32)
 
     def reset(self, *, seed=None, options=None):

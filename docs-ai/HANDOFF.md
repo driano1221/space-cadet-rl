@@ -47,8 +47,28 @@ O cmake fica em
 - Conferir o `n` de cada grupo antes de comparar: ja aconteceu de um teste
   sobrescrever CSV e a comparacao rodar com n=20 contra n=300.
 - Trajetoria completa a 120 passos/s gera arquivo grande. Amostrar.
+- **Duracao alta com score baixo e' o berco, nao bom desempenho.** Sempre
+  conferir velocidade mediana da bola e % do tempo no topo da mesa.
+- Baselines de resolucoes diferentes nao sao comparaveis: mudar
+  `quadros_por_passo` muda tambem o score do aleatorio.
 
 ## Proximo passo
 
-Implementar o binding Python (pybind11) e o wrapper `gym.Env`, fechando o
-loop para treinar um agente de verdade. A coleta de trajetoria ja esta pronta.
+**Dar visao da mesa ao agente.** Hoje a observacao tem 15 numeros sobre bola e
+flippers e nada sobre alvos, rampas ou bumpers - o agente nao pode aprender a
+mirar no que nao percebe. O caminho e' uma observacao em grade 2D (canais para
+posicao da bola e luzes acesas) com CNN, como o projeto do Antiyoy fez.
+
+Ja existe `tela_x`/`tela_y` no estado, projetados pelo proprio jogo, o que
+facilita montar a grade.
+
+Antes disso, dois itens baratos:
+
+- **bloquear o berco**: penalizar bola parada perto dos flippers, ou encerrar o
+  episodio quando a velocidade ficar abaixo de um limiar por N segundos;
+- **usar 25 ms** (`quadros_por_passo=3`) em tudo - a 50 ms o baseline cai 40%.
+
+Duas acoes do jogo continuam sem exposicao: **nudge**
+(`nudge::nudge_left/right/up`) e **plunger modulado** - `pb::launch_ball()`
+sempre usa `Boost = MaxPullback`, forca maxima, mas o jogo permite modular pelo
+tempo entre `PlungerInputPressed` e `PlungerInputReleased`.

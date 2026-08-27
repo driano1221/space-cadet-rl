@@ -83,3 +83,62 @@ Build: `-DBUILD_PYTHON_MODULE=ON -Dpybind11_DIR=<dir>` e alvo `spacecadet_env`.
   bitmap da mesa, usar `proj::xform_to_2d` (colunas `tela_x`/`tela_y`).
 - Um teste de reprodutibilidade ja sobrescreveu um CSV e fez uma comparacao
   rodar com n=20 contra n=300. Conferir sempre o `n` de cada grupo.
+
+## Ciclo de RL - resultados (2026-08-26/27)
+
+Quatro treinos PPO. Nenhum bateu o baseline aleatorio, mas a distancia caiu
+pela metade e cada rodada rendeu um achado.
+
+| Agente | Mediana | dp | CV | Max | Duracao |
+|---|---|---|---|---|---|
+| **Aleatorio a 25 ms** | **404.375** | 353.219 | 0,67 | 1.425.000 | 173 s |
+| PPO 25 ms + flippers | 212.500 | 90.899 | 0,38 | 461.750 | 104 s |
+| PPO sem bonus, 50 ms | 154.500 | - | - | 400.750 | 120 s |
+| PPO score cru, 50 ms | 144.750 | - | - | 351.500 | 98 s |
+| PPO + bonus de sobrevivencia | 72.000 | - | - | 525.000 | 264 s |
+
+### Tres achados
+
+**1. O berco.** Com dois flippers erguidos a bola fica apoiada, imovel, e a
+partida nunca termina. A EDA mostrou: velocidade mediana 0,17 contra 9,49 do
+aleatorio, 82,7% do tempo quase parada, 97,6% do tempo na base, 1,5% no topo
+(onde ficam os alvos). Rende 11.568 pontos/min contra 161.280 do aleatorio.
+Tres caminhos independentes caem nele: bonus de recompensa, politica de flipper
+travado e heuristica defensiva escrita a mao.
+
+**2. Resolucao temporal.** O flipper leva ~50 ms para erguer. Decidir a cada
+50 ms e' decidir na escala do proprio movimento da pa'. Score mediano do
+aleatorio por intervalo: 100 ms = 247.375; 50 ms = 355.375; **25 ms = 467.750**;
+8 ms = 452.125. Existe um patamar em torno de 25 ms.
+
+**3. Captura do objetivo.** Um bonus de sobrevivencia de 0,02 por passo levou o
+PPO a travar o flipper direito em 96,8% dos passos, com **93% da recompensa
+vindo do bonus** e 7% do score. Controle limpo: o treino seguinte, identico
+exceto pelo bonus zerado, usou 27% de "direito" e 100% da recompensa vinda do
+score.
+
+### Por que o agente nao aprende a jogar bem
+
+Em ordem de peso:
+
+1. **Ele nao enxerga a mesa.** A observacao tem 15 numeros sobre bola e
+   flippers e nada sobre alvos, rampas ou bumpers. Nao ha' como aprender a
+   mandar a bola num alvo que nao existe na percepcao. O teto de 461.750 contra
+   1.425.000 do aleatorio e' compativel com isso: ele nunca acessa as jogadas
+   grandes.
+2. **O aleatorio e' baseline forte.** Faz 404.375 - a fisica trabalha sozinha.
+   Nao e' Atari, onde random faz zero.
+3. **Credito diluido.** Os pontos chegam segundos apos a tacada; com 40
+   decisoes/s e gamma 0,995, 3 s descontam para 55%. E 97% dos passos valem
+   zero, com picos de 25x o desvio.
+4. **Escala.** 600k passos sao ~1,8M frames; Atari usa 50M.
+
+### Proximos passos sugeridos
+
+- [ ] **Visao da mesa**: observacao em grade 2D (bola + luzes em canais) e CNN,
+      como o projeto do Antiyoy fez. Ataca a causa raiz.
+- [ ] **Bloquear o berco**: penalizar bola parada perto dos flippers ou encerrar
+      o episodio por velocidade baixa prolongada. Barato.
+- [ ] **Escala**: 5M+ passos.
+- [ ] **Acoes que faltam**: nudge (`nudge_left/right/up`) e plunger modulado -
+      hoje `launch_ball()` usa sempre `Boost = MaxPullback`, forca maxima.
