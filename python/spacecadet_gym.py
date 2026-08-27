@@ -150,7 +150,11 @@ class SpaceCadetEnv(gym.Env):
                 "bolas_restantes": e.bolas_restantes,
                 # posicao em pixels, para render externo (animacoes)
                 "tela_x": e.tela_x, "tela_y": e.tela_y,
-                "speed": e.bola_speed}
+                "speed": e.bola_speed,
+                # progressao: rank, avanco no rank e combustivel
+                "rank": e.rank, "rank_total": e.rank_total,
+                "progresso": e.progresso, "progresso_total": e.progresso_total,
+                "combustivel": e.combustivel}
         return self._observacao(e), float(rec), terminado, truncado, info
 
     def close(self):
