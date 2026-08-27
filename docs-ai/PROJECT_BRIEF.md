@@ -36,6 +36,14 @@ a distribuicao e' terreno de estatistico. Projetos amadores de RL reportam
 Cada camada e' entregavel sozinha, para o projeto nao depender do sucesso do RL
 (que foi o erro do Simon):
 
-1. **Ambiente instrumentado** - FEITO.
-2. **Baseline estatistico do jogo** - parcialmente feito.
-3. **Agente RL** - nao iniciado.
+1. **Ambiente instrumentado** - FEITO. ~1.000x tempo real, deterministico,
+   exposto como `gym.Env` via pybind11.
+2. **Baseline estatistico do jogo** - FEITO. Distribuicao de score (cauda
+   pesada), curva de resolucao temporal, fronteira sobreviver x pontuar e a
+   caracterizacao do berco.
+3. **Agente RL** - FEITO. Supera o aleatorio em **4,3x** (1.740.875 contra
+   404.375, p = 5,7e-15) depois que passou a enxergar a mesa.
+
+O que segue agora nao e' mais "fazer funcionar", e' **escalar**: o agente joga
+o jogo basico e ignora missoes e multiplicadores, que e' onde estao as ordens de
+grandeza. Ver `PROXIMOS_PASSOS.md`.

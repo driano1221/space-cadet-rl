@@ -54,21 +54,25 @@ O cmake fica em
 
 ## Proximo passo
 
-**Dar visao da mesa ao agente.** Hoje a observacao tem 15 numeros sobre bola e
-flippers e nada sobre alvos, rampas ou bumpers - o agente nao pode aprender a
-mirar no que nao percebe. O caminho e' uma observacao em grade 2D (canais para
-posicao da bola e luzes acesas) com CNN, como o projeto do Antiyoy fez.
+**A visao da mesa ja foi feita e resolveu** - o agente passou de 212.500 para
+1.740.875, contra 404.375 do aleatorio. O que vem agora esta em
+`PROXIMOS_PASSOS.md`, na ordem acordada:
 
-Ja existe `tela_x`/`tela_y` no estado, projetados pelo proprio jogo, o que
-facilita montar a grade.
+1. medir qual rank o agente atinge hoje (quantifica a distancia ate' o recorde
+   humano de 126 milhoes);
+2. expor `render::vscreen` para gerar animacoes reais, com flippers e luzes;
+3. recompensar progresso de rank e retreinar.
 
-Antes disso, dois itens baratos:
+O item 3 e' o unico com chance de mudar a ordem de grandeza do score: hoje o
+agente joga o jogo basico (bumper = 500 pontos) enquanto uma missao completa
+vale 500.000 a 1.000.000.
 
-- **bloquear o berco**: penalizar bola parada perto dos flippers, ou encerrar o
-  episodio quando a velocidade ficar abaixo de um limiar por N segundos;
-- **usar 25 ms** (`quadros_por_passo=3`) em tudo - a 50 ms o baseline cai 40%.
+## Onde mexer para cada coisa
 
-Duas acoes do jogo continuam sem exposicao: **nudge**
-(`nudge::nudge_left/right/up`) e **plunger modulado** - `pb::launch_ball()`
-sempre usa `Boost = MaxPullback`, forca maxima, mas o jogo permite modular pelo
-tempo entre `PlungerInputPressed` e `PlungerInputReleased`.
+| Objetivo | Arquivo |
+|---|---|
+| estado exposto ao agente | `SpaceCadetPinball/SpaceCadetPinball/rlenv.cpp` |
+| grade de visao | `python/visao.py` |
+| rede | `python/cnn.py` |
+| treino | `python/treinar_visao_par.py` |
+| recompensa | `python/spacecadet_gym.py`, metodo `step` |
