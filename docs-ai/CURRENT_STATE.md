@@ -142,3 +142,75 @@ Em ordem de peso:
 - [ ] **Escala**: 5M+ passos.
 - [ ] **Acoes que faltam**: nudge (`nudge_left/right/up`) e plunger modulado -
       hoje `launch_ball()` usa sempre `Boost = MaxPullback`, forca maxima.
+
+## RESULTADO: a visao da mesa destravou o aprendizado (2026-08-27)
+
+O agente com visao da mesa **supera o aleatorio em 4,3x**. E' o resultado
+principal do experimento.
+
+| Agente | Mediana | dp | CV | Min | Max | Duracao |
+|---|---|---|---|---|---|---|
+| **PPO COM VISAO** | **1.740.875** | 686.346 | 0,40 | 548.000 | 3.289.000 | 292 s |
+| Aleatorio (25 ms) | 404.375 | 353.219 | 0,67 | 139.500 | 1.425.000 | 173 s |
+| PPO sem visao (25 ms + flippers) | 212.500 | 90.899 | 0,38 | 104.750 | 461.750 | 104 s |
+| PPO sem visao (score cru) | 144.750 | 57.568 | 0,35 | 89.500 | 351.500 | 98 s |
+| PPO sem visao (+ bonus) | 72.000 | 104.586 | 1,10 | 4.500 | 525.000 | 264 s |
+
+Mann-Whitney contra o aleatorio: **p = 5,7e-15**.
+
+O **pior** episodio do agente (548.000) e' maior que a **mediana** do aleatorio.
+Sem o teto de 300 s (medindo com 600 s): mediana **1.923.625**, maximo
+**7.684.000**.
+
+### Nao e' o berco - verificado
+
+| | Berco | Aleatorio | **PPO com visao** |
+|---|---|---|---|
+| Velocidade mediana | 0,17 | 9,49 | **10,48** |
+| % quase parada | 82,7% | 10,9% | **6,9%** |
+| % no topo (alvos) | 1,5% | 20,7% | **22,9%** |
+| % no fundo | 97,6% | 39,5% | **31,2%** |
+
+Move a bola **mais rapido que o aleatorio**, passa **mais tempo no topo** e
+**menos no fundo**. E' o oposto do berco. Acoes distribuidas (34% nada, 15% esq,
+34% dir, 16% ambos), sem colapso.
+
+### O que a rede olha (saliencia)
+
+| Canal | Peso |
+|---|---|
+| velocidade x | 18,7% |
+| velocidade y | 16,9% |
+| bola | 14,4% |
+| **luzes acesas** | **13,3%** |
+| flippers | 10,6% |
+| alvos | 9,0% |
+| rollovers | 8,7% |
+| bumpers | 8,4% |
+
+Tres leituras: (1) os canais de velocidade dominam (35,6%) - o agente aprendeu
+que importa para onde a bola vai, nao onde ela esta; (2) os canais da mesa somam
+39,4%, prova de que a visao esta sendo usada; (3) as **luzes pesam mais que
+qualquer objeto fixo** - sao o unico canal dinamico da mesa, indicando quais
+missoes estao ativas.
+
+### Configuracao do treino vencedor
+
+- 2.500.000 passos, 6 ambientes em SubprocVecEnv, CNN na GPU
+- 25 ms por decisao (`quadros_por_passo=3`)
+- observacao Dict: grade 8x36x28 + vetor de 15 numeros
+- recompensa = raiz do ganho de score, VecNormalize, sem bonus de sobrevivencia
+- PPO: n_steps 1024, batch 512, lr 3e-4, ent_coef 0,01, gamma 0,995, n_epochs 4
+- tempo: 4.012 s (67 min) a 623 passos/s
+
+### Pipeline de velocidade
+
+| Configuracao | Passos/s |
+|---|---|
+| CNN em CPU, 1 ambiente | 91 |
+| CNN em GPU, 1 ambiente | 158 |
+| CNN em GPU, 6 ambientes | 623-878 |
+
+A GPU sozinha rendeu pouco (1,7x): a rede e' pequena e processava lote de 1.
+Foi o paralelismo que destravou. GPU fica em ~20% de uso - o gargalo e' a
+coleta, nao o calculo.

@@ -4,10 +4,31 @@ Experimento de engenharia reversa aplicada: transformar o *3D Pinball for
 Windows - Space Cadet* num ambiente que gera dados em massa, para depois
 treinar e **analisar estatisticamente** um agente.
 
-> **Status: experimento validado, ainda nao e' projeto.**
-> A coleta de dados funciona. Nao existe agente treinado.
+> **Status: o agente aprendeu a jogar.**
+> Um PPO com visao da mesa supera a politica aleatoria em **4,3x**
+> (1.740.875 contra 404.375, Mann-Whitney p = 5,7e-15).
 
-## O resultado que justifica o experimento
+## O resultado
+
+| Agente | Score mediano | Duracao |
+|---|---|---|
+| **PPO com visao da mesa** | **1.740.875** | 292 s |
+| Aleatorio | 404.375 | 173 s |
+| PPO sem visao | 212.500 | 104 s |
+
+![resultado](analise/resultado_final.png)
+
+Mesma arquitetura, mesma recompensa, mesmo algoritmo nos dois PPO. A unica
+diferenca e' que um enxerga a mesa. Sem a visao o agente nao podia aprender a
+mirar, porque os alvos nao existiam na percepcao dele.
+
+O que a rede olha, por saliencia: velocidade da bola 35,6%, canais da mesa
+39,4%, com as **luzes acesas pesando mais que qualquer objeto fixo** - sao o
+unico canal dinamico, indicando quais missoes estao ativas.
+
+![saliencia](analise/saliencia.png)
+
+## A infraestrutura que tornou isso possivel
 
 | Metrica | Valor |
 |---|---|
