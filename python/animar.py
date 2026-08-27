@@ -34,10 +34,16 @@ def politica_de(nome, env):
     return lambda o: int(m.predict(o, deterministic=True)[0])
 
 
-def coletar(nome, segundos):
+def coletar(nome, segundos, pular=70):
+    """`pular` segundos de aquecimento antes de gravar: no comeco os dois
+    agentes ainda parecem iguais, e o contraste so' aparece depois."""
     env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=40000)
     pol = politica_de(nome, env)
     obs, _ = env.reset()
+    for _ in range(int(pular * 40)):
+        obs, _, term, trunc, _ = env.step(pol(obs))
+        if term or trunc:
+            obs, _ = env.reset()
     quadros, n = [], 0
     alvo = int(segundos * 40)          # 40 decisoes por segundo de jogo
     while n < alvo:
@@ -56,13 +62,22 @@ def montar(qa, ra, qb, rb, saida):
     W, H = mesa.size
     fundo = Image.fromarray((np.asarray(mesa, dtype=float) * .8).astype("uint8"))
     imgs = []
-    for (xa, ya, sa, ta, va), (xb, yb, sb, tb, vb) in zip(qa, qb):
+    rastros = [[], []]
+    for k, ((xa, ya, sa, ta, va), (xb, yb, sb, tb, vb)) in enumerate(zip(qa, qb)):
         quadro = Image.new("RGB", (W * 2 + 30, H + 46), (16, 16, 16))
         for i, (x, y, sc, t, vel, rot) in enumerate(
                 ((xa, ya, sa, ta, va, ra), (xb, yb, sb, tb, vb, rb))):
             painel = fundo.copy()
             dr = ImageDraw.Draw(painel)
+            rastro = rastros[i]
             if x >= 0:
+                rastro.append((x, y))
+                del rastro[:-14]
+                for j in range(1, len(rastro)):
+                    f = j / len(rastro)
+                    dr.line([rastro[j-1], rastro[j]],
+                            fill=(int(255*f), int(80*f), int(20*f)),
+                            width=max(1, int(3*f)))
                 r = 5
                 dr.ellipse([x-r, y-r, x+r, y+r], fill=(255, 255, 90),
                            outline=(30, 30, 30))
