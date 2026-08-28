@@ -8,11 +8,11 @@ Situacao em 2026-08-27.
 | 2 | Expor `render::vscreen` | **feito** | captura real; GIF com flippers e luzes |
 | 3 | Recompensar progresso de rank | **feito, falhou** | sinal 180x mais esparso que o score |
 | 4 | Fluxo de missao | **feito, funcionou** | alvos +31% (p=0,030), score inalterado |
-| 5 | Multiplicadores (2x a 10x) | pendente | maior potencial de escala restante |
-| 6 | Loop do launch pad | pendente | verificar se o agente descobre sozinho |
-| 7 | Nudge, com penalidade de falta | pendente | acao que existe e nao esta exposta |
-| 8 | Tempo de reacao variavel | pendente | ideia do Adriano; handicap e regularizacao |
-| 9 | Escala de treino | pendente | 2,5M passos e' ~5% do orcamento tipico de Atari |
+| 7 | **Nudge e plunger modulado** | **proximo** | completa o repertorio; hoje o agente joga com menos acoes que um humano |
+| 5 | Multiplicadores (2x a 10x) | pendente | onde estao as ordens de grandeza |
+| 8 | Tempo de reacao variavel | pendente | caracterizacao: quanto e reflexo, quanto e estrategia |
+| 6 | Loop do launch pad | pendente | observacional; melhor com agente maduro |
+| 9 | Escala de treino | **feito, saturou** | 2,5M ja e o teto; p=0,55 e p=0,48 |
 
 ---
 
