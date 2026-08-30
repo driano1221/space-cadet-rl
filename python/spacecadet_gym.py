@@ -53,7 +53,8 @@ class SpaceCadetEnv(gym.Env):
                  peso_progresso: float = 0.0, peso_rank: float = 0.0,
                  peso_alvo: float = 0.0, peso_rampa: float = 0.0,
                  peso_missao: float = 0.0,
-                 peso_mult_alvo: float = 0.0, peso_mult_nivel: float = 0.0):
+                 peso_mult_alvo: float = 0.0, peso_mult_nivel: float = 0.0,
+                 atraso_ms: float = 0.0):
         super().__init__()
         if recompensa not in ("score", "sobrevivencia"):
             raise ValueError("recompensa deve ser 'score' ou 'sobrevivencia'")
@@ -82,6 +83,12 @@ class SpaceCadetEnv(gym.Env):
         # tres alvos somados - e' o premio por completar, nao por acertar.
         self.peso_mult_alvo = peso_mult_alvo
         self.peso_mult_nivel = peso_mult_nivel
+        # Atraso de reacao: a acao decidida agora so' chega ao jogo depois de
+        # `atraso_ms`. Um humano tem 200-300 ms; o agente tem 0. Serve para
+        # medir quanto do desempenho vem de reflexo e quanto de estrategia.
+        ms_por_passo = quadros_por_passo * 1000.0 / 120.0
+        self.atraso_passos = int(round(atraso_ms / ms_por_passo))
+        self._fila_acoes = []
         self._malvos_ant = 0
         self._mnivel_ant = 0
         self._prog_ant = 0
@@ -152,6 +159,7 @@ class SpaceCadetEnv(gym.Env):
         # zera os acumuladores de progressao junto com a partida
         self._prog_ant = int(getattr(e, "progresso", 0))
         self._rank_ant = int(getattr(e, "rank", 1))
+        self._fila_acoes = []
         self._malvos_ant = int(getattr(e, "mult_alvos", 0))
         self._mnivel_ant = int(getattr(e, "multiplicador", 0))
         self._ev_ant = (int(getattr(e, "ev_mission_target", 0)),
@@ -161,8 +169,16 @@ class SpaceCadetEnv(gym.Env):
         return self._observacao(e), {"score": e.score}
 
     def step(self, action: int):
-        esq = bool(action & 1)
-        dir_ = bool(action & 2)
+        # Com atraso, a acao decidida agora entra numa fila e so' e' aplicada
+        # depois de N passos; enquanto a fila nao enche, o jogo repete a acao
+        # mais antiga disponivel (equivalente a "ainda nao reagiu").
+        if self.atraso_passos > 0:
+            self._fila_acoes.append(action)
+            aplicada = self._fila_acoes.pop(0) if len(self._fila_acoes) > self.atraso_passos else 0
+        else:
+            aplicada = action
+        esq = bool(aplicada & 1)
+        dir_ = bool(aplicada & 2)
         e = _core.passo(esq, dir_, quadros=self.quadros)
         self._passos += 1
 
@@ -208,7 +224,12 @@ class SpaceCadetEnv(gym.Env):
         if self.peso_mult_alvo and malvos > self._malvos_ant:
             rec_mult += self.peso_mult_alvo * (malvos - self._malvos_ant)
         if self.peso_mult_nivel and mnivel > self._mnivel_ant:
-            rec_mult += self.peso_mult_nivel * (mnivel - self._mnivel_ant)
+            # Progressiva: 1x->2x e' facil e frequente; 3x->5x e' onde esta o
+            # valor e quase nunca acontece. Peso plano fazia o agente farmar a
+            # primeira trinca e parar. Multiplicadores 0,5 / 1 / 2 / 4.
+            escala = (0.5, 1.0, 2.0, 4.0)
+            for nv in range(self._mnivel_ant + 1, mnivel + 1):
+                rec_mult += self.peso_mult_nivel * escala[min(nv - 1, 3)]
         self._malvos_ant, self._mnivel_ant = malvos, mnivel
 
         rec_base = rec

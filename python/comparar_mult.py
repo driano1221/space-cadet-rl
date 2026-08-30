@@ -16,7 +16,7 @@ except ImportError:
 
 N_EP = 15
 res = {}
-for tag in ("ppo_visao_v1", "ppo_mult"):
+for tag in ("ppo_visao_v1", "ppo_mult2"):
     env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=12000)
     m = PPO.load(tag, device="cpu")
     scores, picos, ivs, trincas_ep, alvos_ep, tempo = [], [], [], [], [], Counter()
@@ -49,7 +49,7 @@ for tag in ("ppo_visao_v1", "ppo_mult"):
     env.close()
 
 if stats:
-    a, b = res["ppo_visao_v1"], res["ppo_mult"]
+    a, b = res["ppo_visao_v1"], res["ppo_mult2"]
     print("\n=== TESTES ===")
     for k in ("score", "trincas", "alvos"):
         print(f"  {k:>8}: p = {stats.mannwhitneyu(a[k], b[k]).pvalue:.4f}")

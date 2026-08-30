@@ -15,6 +15,10 @@ Canais:
   6 luzes acesas    DINAMICO
   7 flippers        0,3 em repouso ate' 1,0 erguido (nunca zero, senao o
                     agente perde a referencia de onde eles ficam)
+  8 alvos do mult.  DINAMICO: intensidade 0,25 a 1,0 conforme quantos dos tres
+                    ja' foram marcados. Os 22 alvos da mesa estao todos no canal
+                    4, indistinguiveis; este canal isola os tres que fecham a
+                    trinca e mostra o progresso dela.
 """
 from __future__ import annotations
 import numpy as np
@@ -22,9 +26,13 @@ import numpy as np
 # A mesa tem 365x470 px. A grade preserva a proporcao.
 GRADE_L, GRADE_A = 28, 36
 MESA_L, MESA_A = 365, 470
-N_CANAIS = 8
+N_CANAIS = 9
 
-C_BOLA, C_VX, C_VY, C_BUMPER, C_ALVO, C_ROLLOVER, C_LUZ, C_FLIPPER = range(N_CANAIS)
+(C_BOLA, C_VX, C_VY, C_BUMPER, C_ALVO, C_ROLLOVER, C_LUZ,
+ C_FLIPPER, C_MULT) = range(N_CANAIS)
+
+# Os tres alvos do multiplicador, na ordem dos bits de mult_bits.
+ALVOS_MULT = ("a_targ7", "a_targ8", "a_targ9")
 
 _ESTATICOS = {
     "bumper": C_BUMPER,
@@ -47,6 +55,7 @@ class Visao:
         self.base = np.zeros((N_CANAIS, GRADE_A, GRADE_L), dtype=np.float32)
         self.luzes = []      # (celula_x, celula_y) de cada luz, na ordem do C++
         self.flippers = []
+        self.alvos_mult = []   # (indice_do_bit, cx, cy, largura, altura)
 
         for p in inventario:
             if not p.tem_sprite:
@@ -61,6 +70,10 @@ class Visao:
                 self.base[canal, y0:y0 + ly, x0:x0 + lx] = 1.0
             if p.tipo == "flipper":
                 self.flippers.append((cx, cy))
+            if p.nome in ALVOS_MULT:
+                self.alvos_mult.append((ALVOS_MULT.index(p.nome), cx, cy,
+                                        max(1, int(p.larg * GRADE_L / MESA_L)),
+                                        max(1, int(p.alt * GRADE_A / MESA_A))))
 
         # a ordem das luzes no inventario e' a mesma de luzes_acesas()
         for p in inventario:
@@ -73,6 +86,18 @@ class Visao:
     def montar(self, e, luzes_estado):
         """e = Estado do jogo; luzes_estado = lista 0/1 vinda do C++."""
         g = self.base.copy()
+
+        # alvos do multiplicador: 1,0 marcado, 0,4 pendente. Ver o que FALTA e'
+        # o que permite mirar na trinca em vez de acertar alvo avulso.
+        # Os tres alvos estao a 8-9 px um do outro e colidem na mesma celula
+        # da grade - nao da' para representar "qual" falta, e o agente nao teria
+        # precisao para mirar num deles isoladamente. O que importa e' QUANTOS
+        # faltam, codificado como intensidade crescente na regiao dos alvos.
+        marcados = int(getattr(e, "mult_alvos", 0))
+        intensidade = 0.25 + 0.25 * marcados        # 0,25 -> 1,0
+        for _, cx, cy, lx, ly in self.alvos_mult:
+            x0, y0 = max(0, cx - lx // 2), max(0, cy - ly // 2)
+            g[C_MULT, y0:y0 + ly, x0:x0 + lx] = intensidade
 
         # bola: gaussiana 3x3 para dar gradiente em vez de um ponto isolado
         if e.tela_x >= 0:

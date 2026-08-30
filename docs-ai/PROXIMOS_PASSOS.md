@@ -1,18 +1,23 @@
 # Proximos passos
 
-Situacao em 2026-08-27.
+Situacao em 2026-08-30.
 
 | # | Passo | Status | Resultado |
 |---|---|---|---|
 | 1 | Medir o rank atual | **feito** | 11,6x mais pontos que o acaso, mesmo rank |
 | 2 | Expor `render::vscreen` | **feito** | captura real; GIF com flippers e luzes |
-| 3 | Recompensar progresso de rank | **feito, falhou** | sinal 180x mais esparso que o score |
+| 3 | Recompensar progresso de rank | **feito, falhou** | sinal 200x mais esparso que o score |
 | 4 | Fluxo de missao | **feito, funcionou** | alvos +31% (p=0,030), score inalterado |
-| 7 | **Nudge e plunger modulado** | **proximo** | completa o repertorio; hoje o agente joga com menos acoes que um humano |
-| 5 | Multiplicadores (2x a 10x) | pendente | onde estao as ordens de grandeza |
-| 8 | Tempo de reacao variavel | pendente | caracterizacao: quanto e reflexo, quanto e estrategia |
-| 6 | Loop do launch pad | pendente | observacional; melhor com agente maduro |
-| 9 | Escala de treino | **feito, saturou** | 2,5M ja e o teto; p=0,55 e p=0,48 |
+| 5 | Multiplicadores | **feito, parcial** | muda comportamento, nao converte em score; ver abaixo |
+| 7 | Nudge e plunger | **feito, descartado** | punicao satura; skill shot nao existe nesta versao |
+| 9 | Escala de treino | **feito, saturou** | 2,5M ja e' o teto; p = 0,55 e 0,48 |
+| 11 | Memoria temporal | **feito, descartada** | ganho de AUC satura em +0,012 com 16 quadros |
+| 6 | Loop do launch pad | **feito** | 3,7 rampas/partida: ele nao descobriu a exploracao |
+| 8 | Tempo de reacao | **feito** | 50 ms custam 79%; com latencia humana fica abaixo do acaso |
+| 10 | Metodo off-policy (DQN/SAC) | **bloqueado** | replay buffer exigiria 68 GB; ha' 2,4 GB livres |
+| **12** | **Consolidar em relatorio** | **proximo** | e' o que resta: transformar o trabalho em portfolio |
+
+---
 
 ---
 
@@ -58,6 +63,49 @@ Caminho sugerido:
 
 Sao alvos fisicos que o agente ja consegue acertar. Basta que a recompensa
 sinalize que valem mais do que parecem no curto prazo.
+
+## 10. Metodo off-policy (DQN, SAC)
+
+Nasceu da comparacao entre Q-Learning e SARSA. **PPO e' on-policy**, como o
+SARSA: aprende considerando a propria exploracao, incluindo os erros. E' o
+"jogador conservador" - acerta alvos pequenos com seguranca em vez de arriscar
+a jogada de alto valor.
+
+Isso bate com o que medimos: pontua 11x mais que o acaso mas trava no mesmo
+rank, nunca passa do multiplicador 2x, e fecha trincas em 63 s quando consegue
+em 4 s. Ele nao vai buscar.
+
+Um metodo **off-policy** aprenderia o valor da jogada arriscada mesmo caindo
+durante a exploracao. Hipotese: o teto de ~1,7 milhao vem em parte do vies do
+algoritmo, nao so' do ambiente.
+
+Teste: treinar DQN na mesma configuracao e comparar. Se ele alcancar niveis de
+multiplicador que o PPO nunca atinge, a hipotese se confirma.
+
+## 11. Memoria temporal (frame stacking)
+
+A hipotese que sobrou depois de eliminar percepcao, escala e incentivo.
+
+O agente ve **um unico instante**. Nao sabe que acertou dois alvos, nem que faz
+40 s desde a ultima trinca, nem que a missao esta a um passo. **Toda tarefa que
+falhou exige exatamente essa informacao.**
+
+O padrao dos tres shapings: premiar *acertar uma coisa* funciona (passo 4);
+premiar *completar uma sequencia* falha (passos 3 e 5).
+
+Comecar pelo teste barato: treinar um classificador para prever "esta trinca vai
+fechar?" com 1 quadro contra 8 quadros. Se 8 predizem muito melhor, a informacao
+existe e vale treinar. Se predizem igual, o passo morre em 30 min em vez de 75.
+
+Preferir **frame stacking** a RNN: mesma hipotese, muito mais barato, reaproveita
+a CNN atual.
+
+## 12. Consolidar em relatorio
+
+O material esta espalhado entre 17 memorias, o vault e os `docs-ai`. Para
+portfolio, falta organizar em um documento unico: o ambiente inedito, o agente
+4,3x o acaso, o reward hacking com controle limpo, os tres shapings
+caracterizados, a escala saturada e as duas mecanicas descartadas.
 
 ## Lacuna conhecida: regua humana
 
