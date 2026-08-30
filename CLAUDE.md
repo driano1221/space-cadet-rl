@@ -48,6 +48,14 @@ um teste sobrescrever CSV e a comparacao rodar com n=20 contra n=300.
 Mudar `quadros_por_passo` muda tambem o score do aleatorio (342k a 50 ms, 404k a
 25 ms). Remedir o baseline junto, sempre. Use **25 ms** (`quadros_por_passo=3`).
 
+### Score sem atraso engana
+
+O agente vence por **reflexo**, nao por estrategia: com 50 ms de atraso perde
+79% do score, e com 250 ms (latencia humana) fica **abaixo da politica
+aleatoria**. Ao avaliar qualquer agente novo, medir tambem com
+`SpaceCadetEnv(atraso_ms=250)` - se o desempenho depender de reagir em 25 ms,
+ele nao aprendeu a jogar, aprendeu a reagir.
+
 ### SubprocVecEnv e' obrigatorio
 
 O estado do jogo e' global no codigo original: **uma instancia por processo**.

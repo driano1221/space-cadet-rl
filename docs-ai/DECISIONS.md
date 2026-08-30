@@ -69,3 +69,65 @@ gancho ja existia (`rlmode::ParseAndRun`, entre init e cleanup).
 cauda pesada (picos de 20 contra desvio de 0,73). Com a recompensa crua, o PPO
 colapsou para "nunca apertar" - 100% das acoes deterministicas - e ficou 2,4x
 PIOR que o aleatorio. A raiz comprime a cauda; `VecNormalize` cuida da escala.
+
+## 2026-08-27
+
+### Medir a frequencia do evento antes de criar qualquer recompensa
+
+Recompensar progresso de rank falhou porque o sinal e' ~200x mais esparso que o
+score (1 evento a cada 6.000 passos contra 33). A premissa de que "11,5 luzes
+por partida" significava sinal denso confundia **valor acumulado** com
+**frequencia**. Desde entao, todo shaping novo passa por uma medicao previa de
+frequencia - e ela ja' matou nudge, plunger e memoria temporal antes do treino.
+
+### Usar 25 ms por decisao, nao 50 ms
+
+O flipper leva ~50 ms para erguer; decidir a cada 50 ms e' decidir na escala do
+proprio movimento da pa'. Score mediano do aleatorio: 247k a 100 ms, 355k a
+50 ms, **468k a 25 ms**. Abaixo disso nao melhora e encarece o treino.
+
+Corolario: baselines de resolucoes diferentes **nao sao comparaveis** - mudar o
+intervalo muda tambem o score do aleatorio.
+
+### Comparar agentes so' em medicao pareada
+
+A variancia entre execucoes chega a 40% no mesmo agente (13,7 e 9,8 alvos em
+duas medicoes). Comparar avaliacoes feitas em momentos diferentes levou a
+conclusao errada duas vezes. Agora todos os agentes rodam na mesma sessao.
+
+## 2026-08-29
+
+### Nao coletar partidas humanas
+
+Adriano optou por nao jogar as 10 partidas de referencia. A regua
+agente/humano - que o paper de CMU reporta como 87% - fica em aberto. O passo 8
+(tempo de reacao) resolve parcialmente: mede se o agente competiria em condicoes
+humanas de reacao, sem precisar de partidas humanas.
+
+### Verificar patches com grep independente
+
+Um patch por script imprimiu sucesso sem ter alterado o arquivo, e o treino de
+84 min saiu identico ao anterior. Agora todo patch usa `assert` na ancora e e'
+conferido com `grep` fora do script antes de gastar maquina.
+
+## 2026-08-30
+
+### O canal do multiplicador representa "quantos faltam", nao "qual falta"
+
+Os tres alvos (`a_targ7/8/9`) estao a 8-9 px um do outro e **colidem na mesma
+celula** da grade 28x36. Alem disso, o agente nao teria precisao para mirar num
+deles isoladamente. O canal usa intensidade crescente (0,25 a 1,0) conforme o
+progresso da trinca.
+
+### Nao testar off-policy (DQN/SAC)
+
+O replay buffer com nossa observacao (9.087 floats = 35,5 KB) exigiria **68 GB**
+no tamanho padrao de 1M transicoes; ha' 2,4 GB livres. Reduzir o buffer a ponto
+de caber descaracterizaria o metodo - e o resultado seria ambiguo entre "o
+algoritmo nao ajuda" e "o buffer era pequeno demais". Registrado como hipotese
+nao testada, com o calculo que mostra por que.
+
+### Avaliar todo agente novo tambem com atraso de 250 ms
+
+Score sem atraso engana: o agente cai 79% com apenas 50 ms. Qualquer agente
+futuro deve ser reportado nas duas condicoes.

@@ -62,6 +62,17 @@ usa convolucao 8x8 com passo 4, feita para telas 84x84, e destroi uma grade
 valor puro do angulo, o canal zerava com os flippers soltos e o agente perdia a
 referencia de onde eles ficam.
 
+## Parametros de experimento
+
+| Nome | Efeito |
+|---|---|
+| `atraso_ms` | enfileira a acao por N passos antes de aplicar; 250 ms = latencia humana |
+| `peso_mult_alvo` / `peso_mult_nivel` | recompensa por alvo do multiplicador e por trinca fechada |
+
+O canal 8 da grade isola os tres alvos do multiplicador (`a_targ7/8/9`), com
+intensidade 0,25 a 1,0 conforme quantos ja' foram marcados. Os tres colidem na
+mesma celula da grade, entao o canal representa **quantos faltam**, nao qual.
+
 ## Paralelismo
 
 Uma instancia de jogo por processo, entao **SubprocVecEnv e' obrigatorio**;

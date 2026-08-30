@@ -47,3 +47,24 @@ Cada camada e' entregavel sozinha, para o projeto nao depender do sucesso do RL
 O que segue agora nao e' mais "fazer funcionar", e' **escalar**: o agente joga
 o jogo basico e ignora missoes e multiplicadores, que e' onde estao as ordens de
 grandeza. Ver `PROXIMOS_PASSOS.md`.
+
+## Resultado alcancado (2026-08-30)
+
+O objetivo declarado - **analisar o agente com rigor estatistico** - foi
+cumprido, e produziu um achado que os projetos publicos do genero nao reportam.
+
+**O agente faz 4,3x o acaso, mas por reflexo, nao por estrategia.** Impondo
+250 ms de atraso (a latencia de uma pessoa) ele cai para 62% da politica
+aleatoria. A vantagem esta toda na janela abaixo de 50 ms.
+
+Isso e' coerente com o resto: nao completa missoes, nao fecha trincas do
+multiplicador, nao faz *cradle* mais que o acaso, e nao descobriu o loop de
+pontuacao das regras. A competencia e' motora, nao cognitiva.
+
+Quatro hipoteses foram testadas para o teto de ~1,7 milhao; tres descartadas com
+dados (escala, incentivo, memoria) e uma bloqueada por hardware (off-policy).
+
+Ao longo do caminho, dois resultados de valor proprio: **reward hacking
+demonstrado com controle limpo** (duas IAs identicas, objetivos opostos, mesma
+duracao, 23x de diferenca no score) e um **ambiente de RL inedito** sobre a
+decompilacao do jogo.

@@ -4,7 +4,7 @@ Experimento de engenharia reversa aplicada: transformar o *3D Pinball for
 Windows - Space Cadet* num ambiente que gera dados em massa, para depois
 treinar e **analisar estatisticamente** um agente.
 
-> **Status: o agente aprendeu a jogar.**
+> **Status: o agente aprendeu a rebater - por reflexo, nao por estrategia.**
 > Um PPO com visao da mesa supera a politica aleatoria em **4,3x**
 > (1.740.875 contra 404.375, Mann-Whitney p = 5,7e-15).
 
@@ -27,6 +27,38 @@ O que a rede olha, por saliencia: velocidade da bola 35,6%, canais da mesa
 unico canal dinamico, indicando quais missoes estao ativas.
 
 ![saliencia](analise/saliencia.png)
+
+## A ressalva que muda tudo
+
+O agente faz 4,3x o acaso **com tempo de reacao zero**. Impondo atraso entre a
+decisao e a acao:
+
+| Atraso | Score | vs. acaso |
+|---|---|---|
+| 0 ms | 1.552.750 | 3,8x |
+| 50 ms | 320.625 | 0,79x |
+| **250 ms** (latencia humana) | **251.000** | **0,62x** |
+
+Nao e' declinio gradual, e' um degrau: 50 ms - ainda 5x mais rapido que uma
+pessoa - ja' custam 79% do score. **Com reflexos humanos, o agente joga pior que
+apertar botoes ao acaso.**
+
+![reacao](analise/reacao.png)
+
+A competencia dele e' motora, nao cognitiva. Isso e' coerente com tudo o mais
+que medimos: nao completa missoes, nao fecha trincas do multiplicador, nao faz
+*cradle* (parar a bola para mirar) mais que o acaso, e nao descobriu o loop de
+pontuacao que as regras da mesa mencionam.
+
+## O teto: quatro hipoteses, tres descartadas
+
+| Hipotese | Como foi testada | Veredito |
+|---|---|---|
+| Percepcao | dar a mesa em grade | **era isso, em parte** - 4,3x |
+| Escala | 2,5M / 5M / 7,5M passos | descartada (p = 0,55 e 0,48) |
+| Incentivo | 3 shapings distintos | descartada |
+| Memoria temporal | AUC com 1 a 16 quadros | descartada (+0,012, satura) |
+| Algoritmo (off-policy) | - | bloqueada: buffer exigiria 68 GB |
 
 ## A infraestrutura que tornou isso possivel
 
