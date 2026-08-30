@@ -248,6 +248,10 @@ class SpaceCadetEnv(gym.Env):
                 "ev_missao_completa": int(getattr(e, "ev_missao_completa", 0)),
                 # decomposicao da recompensa: e' o que revela captura do
                 # objetivo por um termo secundario
+                "bumpers": int(getattr(e, "ev_bumper", 0)),
+                "hyperspace": int(getattr(e, "ev_hyperspace", 0)),
+                "medal": int(getattr(e, "ev_medal", 0)),
+                "bolas_extras": int(getattr(e, "bolas_extras", 0)),
                 "rec_base": rec_base, "rec_prog": rec_prog, "rec_ev": rec_ev,
                 "rec_mult": rec_mult,
                 "bolas_restantes": e.bolas_restantes,

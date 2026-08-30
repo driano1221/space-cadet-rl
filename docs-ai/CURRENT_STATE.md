@@ -255,3 +255,31 @@ explicacao alternativa para os experimentos que falharam.
 Um treino de 84 min foi perdido porque um patch por script imprimiu sucesso sem
 ter alterado o arquivo. Agora todo patch usa `assert` na ancora, e a
 verificacao e' feita com `grep` independente antes de gastar maquina.
+
+## Mecanicas nao exploradas, medidas em 2026-08-30
+
+Pesquisa das regras avancadas revelou tres mecanicas que nunca haviamos medido.
+
+**Multiplicador: ele usa** (minha suspeita estava errada). As regras dizem que o
+multiplicador so' vale para pontos diretos da mesa, nao para bonus e missoes -
+suspeitei que ele ganhasse e ignorasse. Medido:
+
+| Nivel | Bumpers/1000 passos | Pontos/passo |
+|---|---|---|
+| 1x | 7,0 | 120 |
+| 2x | 8,2 | 218 |
+| 3x | 10,7 | 166 |
+
+53% mais bumpers com multiplicador alto; pontos por passo quase dobram de 1x
+para 2x.
+
+**Bola extra: zero.** Derrubar os 3 medal targets tres vezes seguidas da' uma
+bola extra, sem limite - efeito multiplicativo no tempo de jogo. Ele derruba
+**9,2 medal targets por partida** e consegue **zero bolas extras**.
+
+**Hyperspace: 3,2 entradas por partida.** Logo abaixo das 4 que ativam o Center
+Post (o pino que salva a bola) e abaixo da 5a, que traz o Gravity Well e reseta
+as luzes. Fica na faixa boa por acidente.
+
+Contadores adicionados ao estado: `ev_bumper`, `ev_hyperspace`, `ev_medal`,
+`bolas_extras`.
