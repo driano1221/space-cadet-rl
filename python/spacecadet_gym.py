@@ -52,7 +52,8 @@ class SpaceCadetEnv(gym.Env):
                  visao: bool = False,
                  peso_progresso: float = 0.0, peso_rank: float = 0.0,
                  peso_alvo: float = 0.0, peso_rampa: float = 0.0,
-                 peso_missao: float = 0.0):
+                 peso_missao: float = 0.0,
+                 peso_mult_alvo: float = 0.0, peso_mult_nivel: float = 0.0):
         super().__init__()
         if recompensa not in ("score", "sobrevivencia"):
             raise ValueError("recompensa deve ser 'score' ou 'sobrevivencia'")
@@ -76,6 +77,13 @@ class SpaceCadetEnv(gym.Env):
         self.peso_rampa = peso_rampa
         self.peso_missao = peso_missao
         self._ev_ant = (0, 0, 0)
+        # Multiplicador: tres alvos fecham uma trinca e sobem um nivel, mas o
+        # nivel cai sozinho a cada 30 s. Por isso a trinca vale MAIS que os
+        # tres alvos somados - e' o premio por completar, nao por acertar.
+        self.peso_mult_alvo = peso_mult_alvo
+        self.peso_mult_nivel = peso_mult_nivel
+        self._malvos_ant = 0
+        self._mnivel_ant = 0
         self._prog_ant = 0
         self._rank_ant = 1
 
@@ -144,6 +152,8 @@ class SpaceCadetEnv(gym.Env):
         # zera os acumuladores de progressao junto com a partida
         self._prog_ant = int(getattr(e, "progresso", 0))
         self._rank_ant = int(getattr(e, "rank", 1))
+        self._malvos_ant = int(getattr(e, "mult_alvos", 0))
+        self._mnivel_ant = int(getattr(e, "multiplicador", 0))
         self._ev_ant = (int(getattr(e, "ev_mission_target", 0)),
                         int(getattr(e, "ev_launch_ramp", 0)),
                         int(getattr(e, "ev_missao_completa", 0)))
@@ -191,14 +201,26 @@ class SpaceCadetEnv(gym.Env):
                 rec_ev += peso * (atual - ant)
         self._ev_ant = ev
 
+        # --- multiplicador ------------------------------------------------
+        malvos = int(getattr(e, "mult_alvos", 0))
+        mnivel = int(getattr(e, "multiplicador", 0))
+        rec_mult = 0.0
+        if self.peso_mult_alvo and malvos > self._malvos_ant:
+            rec_mult += self.peso_mult_alvo * (malvos - self._malvos_ant)
+        if self.peso_mult_nivel and mnivel > self._mnivel_ant:
+            rec_mult += self.peso_mult_nivel * (mnivel - self._mnivel_ant)
+        self._malvos_ant, self._mnivel_ant = malvos, mnivel
+
         rec_base = rec
-        rec += rec_prog + rec_ev
+        rec += rec_prog + rec_ev + rec_mult
         self._prog_ant, self._rank_ant = prog, rank
 
         terminado = bool(e.fim)
         truncado = self._passos >= self.max_passos
         info = {"score": e.score, "tempo_s": e.tempo_s,
                 "rank": rank, "progresso": prog,
+                "multiplicador": int(getattr(e, "multiplicador", 0)),
+                "mult_alvos": int(getattr(e, "mult_alvos", 0)),
                 # eventos do fluxo de missao, acumulados no episodio
                 "ev_mission_target": int(getattr(e, "ev_mission_target", 0)),
                 "ev_launch_ramp": int(getattr(e, "ev_launch_ramp", 0)),
@@ -206,6 +228,7 @@ class SpaceCadetEnv(gym.Env):
                 # decomposicao da recompensa: e' o que revela captura do
                 # objetivo por um termo secundario
                 "rec_base": rec_base, "rec_prog": rec_prog, "rec_ev": rec_ev,
+                "rec_mult": rec_mult,
                 "bolas_restantes": e.bolas_restantes,
                 # posicao em pixels, para render externo (animacoes)
                 "tela_x": e.tela_x, "tela_y": e.tela_y,

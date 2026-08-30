@@ -54,6 +54,20 @@ O cmake fica em
 
 ## Proximo passo
 
+**Passo 5 - multiplicadores** (em andamento em 2026-08-29). O agente nunca passa
+do nivel 2 de 4 porque o multiplicador **cai um nivel a cada 30 s** e ele fecha
+trincas a cada 59 s - tres vezes mais lento que o decaimento. Recompensa em duas
+camadas: 8 por alvo marcado, 32 por trinca fechada (a trinca vale 1,33x os tres
+alvos, para premiar completar em vez de acertar avulso). Calibrado em 19,1% da
+recompensa.
+
+Depois disso, o que resta esta em PROXIMOS_PASSOS.md. Os dois mais promissores:
+**tempo de reacao variavel** (mede quanto do desempenho e' reflexo sobre-humano)
+e **metodo off-policy** (a hipotese de que o teto vem do vies conservador do
+PPO).
+
+## Proximo passo (anterior, ja concluido)
+
 **A visao da mesa ja foi feita e resolveu** - o agente passou de 212.500 para
 1.740.875, contra 404.375 do aleatorio. O que vem agora esta em
 `PROXIMOS_PASSOS.md`, na ordem acordada:

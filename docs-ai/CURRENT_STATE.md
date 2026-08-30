@@ -214,3 +214,44 @@ missoes estao ativas.
 A GPU sozinha rendeu pouco (1,7x): a rede e' pequena e processava lote de 1.
 Foi o paralelismo que destravou. GPU fica em ~20% de uso - o gargalo e' a
 coleta, nao o calculo.
+
+## Revisoes de 2026-08-29
+
+### Berco: detectar por duracao, nao por velocidade
+
+O criterio antigo ("velocidade mediana < 2") confunde fisica normal com
+comportamento degenerado. Medindo blocos contiguos de velocidade baixa:
+
+| Agente | Duracao media da parada |
+|---|---|
+| Aleatorio | 0,58 s |
+| PPO com visao | 0,57 s |
+| PPO sobrevivencia (berco) | **16,60 s** |
+
+Paradas de meio segundo sao a bola desacelerando ao subir rampa. O berco e' 29x
+mais longo. Script: `python/cradle.py`.
+
+### Nenhum agente faz cradle
+
+O paper de CMU observou o agente deles parando a bola de proposito para depois
+mirar - tecnica legitima. Testamos: **nenhum dos nossos faz**. O agente bom tem
+a mesma taxa que a politica aleatoria (25% contra 30%), ou seja, artefato da
+metrica. Ele joga por reflexo, nao por planejamento, o que e' coerente com nunca
+perseguir missoes nem multiplicadores.
+
+### Nudge e plunger: medidos e descartados
+
+Nudge nao tem gradiente (9 faltas por 100 s independentemente do uso). Plunger
+nao tem skill shot nesta versao (p > 0,17 entre as tres forcas). Detalhes em
+PROXIMOS_PASSOS.md.
+
+### Escala satura em 2,5M passos
+
+2,5M / 5M / 7,5M sem diferenca (p = 0,55 e 0,48). "Faltou treino" deixou de ser
+explicacao alternativa para os experimentos que falharam.
+
+### Bug de metodo corrigido
+
+Um treino de 84 min foi perdido porque um patch por script imprimiu sucesso sem
+ter alterado o arquivo. Agora todo patch usa `assert` na ancora, e a
+verificacao e' feita com `grep` independente antes de gastar maquina.

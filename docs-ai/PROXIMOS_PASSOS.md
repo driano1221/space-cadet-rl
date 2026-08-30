@@ -59,6 +59,16 @@ Caminho sugerido:
 Sao alvos fisicos que o agente ja consegue acertar. Basta que a recompensa
 sinalize que valem mais do que parecem no curto prazo.
 
+## Lacuna conhecida: regua humana
+
+Sabemos que o agente faz 4,3x o acaso, mas **nao que fracao de um humano** isso
+representa. O paper de CMU reporta 87% para o agente deles. Adriano optou por
+nao jogar as partidas de referencia, entao essa regua continua em aberto.
+
+O passo 8 (tempo de reacao) resolve parcialmente: mede quanto do desempenho vem
+de reflexo sobre-humano, o que situa o agente contra a capacidade humana sem
+precisar de partidas humanas.
+
 ## 6. Verificar se o agente descobre o loop do launch pad
 
 As regras mencionam pontuacao quase indefinida mandando a bola repetidamente a

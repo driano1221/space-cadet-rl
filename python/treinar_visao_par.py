@@ -54,6 +54,7 @@ if __name__ == "__main__":
     # guia; rampa e missao completa sao raros e entram com peso maior so' para
     # nao sumirem na soma.
     peso_alvo = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
+    peso_mult = float(sys.argv[7]) if len(sys.argv) > 7 else 0.0
 
     print(f"=== VISAO | recompensa={recompensa} | {passos} passos | "
           f"{n_envs} ambientes | peso_prog={peso_prog} peso_alvo={peso_alvo} "
@@ -69,7 +70,9 @@ if __name__ == "__main__":
                                   peso_rank=peso_prog * 5,
                                   peso_alvo=peso_alvo,
                                   peso_rampa=peso_alvo * 4,
-                                  peso_missao=peso_alvo * 20)
+                                  peso_missao=peso_alvo * 20,
+                                  peso_mult_alvo=peso_mult,
+                                  peso_mult_nivel=peso_mult * 4)
                           for i in range(n_envs)])
     venv = VecNormalize(venv, norm_obs=False, norm_reward=True, clip_reward=10.0)
 

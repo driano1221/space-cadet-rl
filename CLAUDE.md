@@ -32,6 +32,10 @@ e **% do tempo no topo da mesa**, nao so' score e duracao.
 Referencias medidas: berco = velocidade 0,17 e 1,5% no topo; aleatorio = 9,49 e
 20,7%; agente bom = 10,48 e 22,9%.
 
+**Melhor detector: a duracao da parada, nao a velocidade.** Blocos contiguos de
+velocidade baixa duram 0,57 s no agente bom e no aleatorio (fisica normal: a
+bola desacelera ao subir rampa) contra **16,6 s** no berco. Ver `python/cradle.py`.
+
 ### Sempre rode as politicas de controle
 
 `-rl-policy 0` (nunca aperta) e `-rl-policy 2` (sempre apertado) sao o teste que
