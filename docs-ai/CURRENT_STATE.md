@@ -273,9 +273,14 @@ suspeitei que ele ganhasse e ignorasse. Medido:
 53% mais bumpers com multiplicador alto; pontos por passo quase dobram de 1x
 para 2x.
 
-**Bola extra: zero.** Derrubar os 3 medal targets tres vezes seguidas da' uma
-bola extra, sem limite - efeito multiplicativo no tempo de jogo. Ele derruba
-**9,2 medal targets por partida** e consegue **zero bolas extras**.
+**Bola extra: zero, mas por pouco.** A primeira medicao lia `ExtraBalls` no fim
+do episodio - esse campo e' um **saldo** que desce ao usar, entao dava sempre
+zero. Corrigido com um contador de concessoes, o zero se confirmou, mas a razao
+e' outra: ele fecha ~2,4 conjuntos de medal targets por partida (7,3 alvos) e a
+bola extra exige **tres** conjuntos. Para a um conjunto de distancia.
+
+Isso refina o diagnostico: ele **executa sequencias de tres passos e trava nas
+de nove**. E' limite de horizonte, nao de capacidade de compor.
 
 **Hyperspace: 3,2 entradas por partida.** Logo abaixo das 4 que ativam o Center
 Post (o pino que salva a bola) e abaixo da 5a, que traz o Gravity Well e reseta

@@ -252,6 +252,7 @@ class SpaceCadetEnv(gym.Env):
                 "hyperspace": int(getattr(e, "ev_hyperspace", 0)),
                 "medal": int(getattr(e, "ev_medal", 0)),
                 "bolas_extras": int(getattr(e, "bolas_extras", 0)),
+                "extra_ganha": int(getattr(e, "ev_extra_ganha", 0)),
                 "rec_base": rec_base, "rec_prog": rec_prog, "rec_ev": rec_ev,
                 "rec_mult": rec_mult,
                 "bolas_restantes": e.bolas_restantes,
