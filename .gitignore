@@ -10,3 +10,7 @@ python/*.log
 *.pyc
 python/ckpt/
 analise/*.log
+
+# clipes gerados: reproduziveis via clipes.py; a selecao curada vive em analise/midia/
+analise/clipes*/
+analise/Rplots.pdf
