@@ -126,7 +126,11 @@ if __name__ == "__main__":
     m.learn(total_timesteps=passos, callback=ckpt)
     dt = time.perf_counter() - t0
     print(f"treino: {dt:.0f}s ({passos/dt:.0f} passos/s)", flush=True)
-    m.save(f"ppo_{tag}"); venv.close()
+    m.save(f"ppo_{tag}")
+    # model.save() nao inclui o VecNormalize; sem isto, retomar de um checkpoint
+    # recomeca com as estatisticas de recompensa zeradas. Nao afeta avaliacao
+    # (norm_obs=False, entao a politica ve os mesmos valores), so' retomada.
+    venv.save(_saida(f"vecnorm_{tag}.pkl")); venv.close()
 
     print("DEPOIS:", flush=True)
     sd, dd = avaliar(lambda o: int(m.predict(o, deterministic=True)[0]), 40, "ppo")

@@ -35,7 +35,8 @@ from spacecadet_gym import SpaceCadetEnv
 # A faixa nova cruza a borda do plato: ha' opcoes boas E opcoes ruins, que e'
 # a condicao para existir calibragem.
 ESPERAS = [0, 6, 12, 18, 24, 36]       # 0, 50, 100, 150, 200, 300 ms
-PULSO = 4               # 100 ms de flipper erguido por tacada
+PULSO = 12              # 100 ms a 120 quadros/s (a versao antiga usava 4,
+                        # que sao 33 ms - os treinos desta linha rodaram assim)
 MAX_ESPERA_ZONA = 1200  # quadros (30 s) sem a bola entrar na zona -> segue o jogo
 
 

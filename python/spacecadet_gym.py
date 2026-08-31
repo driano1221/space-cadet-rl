@@ -42,6 +42,10 @@ from visao import Visao, GRADE_L, GRADE_A, N_CANAIS  # noqa: E402
 _LIM = {"x": 7.5, "y": 14.5, "v": 40.0, "luzes": 40.0, "mult": 6.0, "rel_y": 28.0}
 
 
+# gamma do PPO nos treinos; o shaping por potencial precisa do mesmo valor
+_GAMMA_AGENTE = 0.995
+
+
 class SpaceCadetEnv(gym.Env):
     """Duas acoes binarias (flipper esquerdo e direito) -> 4 combinacoes."""
 
@@ -242,6 +246,10 @@ class SpaceCadetEnv(gym.Env):
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
+        # super().reset semeia so o RNG do gymnasium; o estado do jogo tem RNG
+        # proprio em C++ e ignora isso. Sem esta chamada, seed= nao reproduz nada.
+        if seed is not None:
+            _core.definir_semente(int(seed))
         e = _core.resetar()
         self._score_ant = e.score
         self._flip_ant = (False, False)
@@ -363,10 +371,12 @@ class SpaceCadetEnv(gym.Env):
         rec_pot = 0.0
         if self.peso_potencial:
             pot = rank / 9.0
-            # gamma=1 no shaping: com 0,995 e potencial constante o termo fica
-            # negativo todo passo ((gamma-1)*P), penalizando durar - e durar e'
-            # justamente o que pontua aqui. Telescopico puro soma P_fim - P_inicio.
-            rec_pot = self.peso_potencial * (pot - self._pot_ant)
+            # F = gamma*P(s') - P(s), com o MESMO gamma do agente (0,995).
+            # Ja tentei gamma=1 aqui para evitar o dreno de (gamma-1)*P por passo,
+            # que parecia penalizar durar - mas esse dreno faz parte da formula, e
+            # tirar ele quebra a garantia de Ng et al. (1999) de nao alterar a
+            # politica otima. Com gamma=1 o shaping vira recompensa comum.
+            rec_pot = self.peso_potencial * (_GAMMA_AGENTE * pot - self._pot_ant)
             self._pot_ant = pot
         # novidade: bonus decrescente por celula (rank, multiplicador)
         rec_nov = 0.0
@@ -419,4 +429,12 @@ class SpaceCadetEnv(gym.Env):
         return _core.capturar_tela()
 
     def close(self):
-        pass        # a thread do jogo vive enquanto o processo viver
+        # NAO chamar _core.encerrar() aqui. O modulo nativo e' global e de uso
+        # unico por processo: encerrar derruba a thread do jogo e o proximo
+        # SpaceCadetEnv() do mesmo processo trava. Isso quebraria coletar_eda.py,
+        # que cria um env por agente em sequencia. O preco de nao encerrar e'
+        # cosmetico - o processo sai com codigo 1 mesmo com tudo passando.
+        # Para encerrar de proposito no fim de um script, chamar
+        # spacecadet_env.encerrar() explicitamente uma unica vez.
+        pass
+

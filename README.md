@@ -45,7 +45,8 @@ mesa (bumpers, rampas, alvos), e os flippers so mantem a bola viva. A politica
 
 ```bash
 # treinar (2,5M passos, ~1h em GPU)
-python python/treinar_visao_par.py 2500000 minha_tag 6 score 0 0 0 0 0 0 True
+# o 11o argumento e a string literal "prever" (nao True)
+python python/treinar_visao_par.py 2500000 minha_tag 6 score 0 0 0 0 0 0 prever
 
 # avaliar sem teto de tempo
 python python/sem_teto.py ppo_minha_tag 10
