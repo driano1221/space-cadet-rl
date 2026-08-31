@@ -22,6 +22,7 @@ from __future__ import annotations
 import os
 import sys
 
+import json
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -54,7 +55,15 @@ class SpaceCadetEnv(gym.Env):
                  peso_alvo: float = 0.0, peso_rampa: float = 0.0,
                  peso_missao: float = 0.0,
                  peso_mult_alvo: float = 0.0, peso_mult_nivel: float = 0.0,
-                 atraso_ms: float = 0.0):
+                 atraso_ms: float = 0.0,
+                 peso_medal: float = 0.0,
+                 custo_flip: float = 0.0,
+                 peso_acerto: float = 0.0,
+                 mascara_zona: bool = False,
+                 prever: bool = False,
+                 peso_potencial: float = 0.0,
+                 peso_novidade: float = 0.0,
+                 bolas: int = 0):
         super().__init__()
         if recompensa not in ("score", "sobrevivencia"):
             raise ValueError("recompensa deve ser 'score' ou 'sobrevivencia'")
@@ -66,6 +75,57 @@ class SpaceCadetEnv(gym.Env):
         # colapsa para a acao de menor variancia - ou seja, nunca apertar.
         self.comprimir = comprimir
         self.bonus_vivo = bonus_vivo
+        # Custo por ACIONAR o flipper (borda desligado->ligado). Sem ele o
+        # flipper e' gratis e a politica otima e' apertar quase sempre:
+        # medido 3,9 acionamentos/s e P(acionar) plana em 24 das 25 celulas
+        # do mapa de posicao relativa. Nao penaliza segurar - trapping e'
+        # tecnica legitima, o que custa e' iniciar a tacada.
+        self.custo_flip = custo_flip
+        self._flip_ant = (False, False)
+        # Premia a TACADA, nao a economia de apertos. Vem do collisionFlag da
+        # fisica do jogo: o flipper em movimento conectou com a bola. Como a
+        # funcao so' roda com deltaAngle != 0, segurar a pa' erguida nunca
+        # pontua - fecha a brecha que o custo por acionamento tinha aberto.
+        # Medido no agente atual: 0,15 acerto/s (2,1x o acaso), 2% dos apertos.
+        self.peso_acerto = peso_acerto
+        self._acerto_ant = 0
+        # Mascara de zona: a pa' so' responde com a bola na regiao em que ela
+        # alcanca. Diferente do env de opcoes, aqui a decisao continua sendo a
+        # cada passo - o agente ve a bola no momento em vez de prever onde ela
+        # estara' daqui a 100 ms. A curva de reacao mostra que ele e' reativo,
+        # nao preditivo: pedir antecipacao era pedir o que ele nao tem.
+        self.mascara_zona = mascara_zona
+        self._zona = None
+        # Previsao de trajetoria como entrada, tecnica padrao em Pong/Breakout:
+        # em vez de o agente ter de extrapolar sozinho, recebe pronto QUANDO e
+        # ONDE a bola cruza a linha dos flippers. Medido: a extrapolacao linear
+        # erra 4,5 px em 67 ms e 7,0 px em 100 ms - dentro do raio da bola, que
+        # e' a janela em que a decisao de apertar ainda muda o resultado.
+        self.prever = prever
+        self._tela_ant = None
+        # IDEIA 4 - shaping por potencial (Ng et al. 1999): F = gamma*P(s') - P(s).
+        # Diferente de todo shaping que tentamos: esta forma e' PROVADAMENTE
+        # incapaz de mudar a politica otima, so' acelera o aprendizado. O
+        # potencial e' o rank (monotonico), nao o progresso (que zera a cada
+        # promocao).
+        self.peso_potencial = peso_potencial
+        self._pot_ant = 0.0
+        # IDEIA 2 - bonus por novidade: recompensa por atingir combinacoes
+        # (rank, multiplicador) pouco visitadas. E' exploracao dirigida, nao
+        # shaping de valor - o bonus cai com 1/sqrt(visitas).
+        self.peso_novidade = peso_novidade
+        self._visitas = {}
+        # IDEIA 3 - curriculo de bolas. Tem de ser aplicado DENTRO de cada
+        # processo: com SubprocVecEnv, chamar definir_bolas no pai nao chega
+        # aos filhos, que rodam instancias proprias do jogo.
+        if bolas:
+            _core.definir_bolas(bolas)
+        if mascara_zona:
+            cam = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               '..', 'analise', 'zona_flipper.json')
+            z = json.load(open(cam))
+            self._cel = z['celula']
+            self._zona = {l: {tuple(c) for c in cs} for l, cs in z['zonas'].items()}
         # Recompensa por progressao. As luzes de progresso sao o sinal denso
         # (o agente ja acende ~11,5 das 18 por partida); a missao completa e'
         # rara demais para treinar em cima sozinha.
@@ -89,6 +149,13 @@ class SpaceCadetEnv(gym.Env):
         ms_por_passo = quadros_por_passo * 1000.0 / 120.0
         self.atraso_passos = int(round(atraso_ms / ms_por_passo))
         self._fila_acoes = []
+        # Medal targets: derrubar os 3 fecha um conjunto; TRES conjuntos dao
+        # bola extra, sem limite. O agente faz ~2,4 conjuntos por partida - fica
+        # a um de distancia. Premiamos alvo (denso) e conjunto (o que importa),
+        # nunca a bola extra em si, que e' rara demais para guiar.
+        self.peso_medal = peso_medal
+        self._medal_ant = 0
+        self._conj_ant = 0
         self._malvos_ant = 0
         self._mnivel_ant = 0
         self._prog_ant = 0
@@ -96,17 +163,19 @@ class SpaceCadetEnv(gym.Env):
 
         self.action_space = spaces.Discrete(4)          # 00, 01, 10, 11
         self.usa_visao = visao
+        # 3 campos a mais quando a previsao esta' ligada
+        n_vetor = 15 + (3 if prever else 0)
         if visao:
             # A grade da o layout da mesa (onde estao bumpers, alvos, luzes);
             # o vetor mantem os valores precisos que a grade quantiza.
             self.observation_space = spaces.Dict({
                 "grade": spaces.Box(low=-1.0, high=1.0,
                                     shape=(N_CANAIS, GRADE_A, GRADE_L), dtype=np.float32),
-                "vetor": spaces.Box(low=-1.0, high=1.0, shape=(15,), dtype=np.float32),
+                "vetor": spaces.Box(low=-1.0, high=1.0, shape=(n_vetor,), dtype=np.float32),
             })
         else:
             self.observation_space = spaces.Box(
-                low=-1.0, high=1.0, shape=(15,), dtype=np.float32)
+                low=-1.0, high=1.0, shape=(n_vetor,), dtype=np.float32)
 
         if not _core.ativo():
             # O jogo procura o PINBALL.DAT primeiro no diretorio de trabalho.
@@ -131,8 +200,26 @@ class SpaceCadetEnv(gym.Env):
             return vetor
         return {"grade": self._visao.montar(e, _core.luzes_acesas()), "vetor": vetor}
 
-    @staticmethod
-    def _obs(e) -> np.ndarray:
+    LINHA_FLIPPER = 369      # tela_y mediano das tacadas que conectaram
+
+    def _prever_features(self, e):
+        """quando e onde a bola cruza a linha dos flippers, por extrapolacao linear"""
+        if self._tela_ant is None:
+            return [0.0, 0.0, 0.0]
+        vx = (e.tela_x - self._tela_ant[0]) / self.quadros     # px por quadro
+        vy = (e.tela_y - self._tela_ant[1]) / self.quadros
+        desce = 1.0 if vy > 0.05 else 0.0
+        if vy <= 0.05:                                          # subindo ou parada
+            return [1.0, 0.0, desce]
+        q = (self.LINHA_FLIPPER - e.tela_y) / vy                # quadros ate' a linha
+        if q < 0:                                               # ja' passou
+            return [1.0, 0.0, desce]
+        x_prev = e.tela_x + vx * q
+        return [float(np.clip(q / 30.0, 0, 1)),                 # 1 = longe ou nunca
+                float(np.clip((x_prev - 180.0) / 100.0, -1, 1)),
+                desce]
+
+    def _obs(self, e) -> np.ndarray:
         return np.array([
             e.bola_x / _LIM["x"],
             e.bola_y / _LIM["y"],
@@ -150,23 +237,36 @@ class SpaceCadetEnv(gym.Env):
             np.clip(e.bola_rel_esq_y / _LIM["rel_y"], -1, 1),
             np.clip(e.bola_rel_dir_x / _LIM["x"], -1, 1),
             np.clip(e.bola_rel_dir_y / _LIM["rel_y"], -1, 1),
+        ] + (self._prever_features(e) if self.prever else []) + [
         ], dtype=np.float32)
 
     def reset(self, *, seed=None, options=None):
         super().reset(seed=seed)
         e = _core.resetar()
         self._score_ant = e.score
+        self._flip_ant = (False, False)
+        self._acerto_ant = e.ev_flip_acerto
+        self._pot_ant = int(getattr(e, 'rank', 0)) / 9.0
         # zera os acumuladores de progressao junto com a partida
         self._prog_ant = int(getattr(e, "progresso", 0))
         self._rank_ant = int(getattr(e, "rank", 1))
         self._fila_acoes = []
+        self._medal_ant = int(getattr(e, "ev_medal", 0))
+        self._conj_ant = self._medal_ant // 3
         self._malvos_ant = int(getattr(e, "mult_alvos", 0))
         self._mnivel_ant = int(getattr(e, "multiplicador", 0))
         self._ev_ant = (int(getattr(e, "ev_mission_target", 0)),
                         int(getattr(e, "ev_launch_ramp", 0)),
                         int(getattr(e, "ev_missao_completa", 0)))
         self._passos = 0
-        return self._observacao(e), {"score": e.score}
+        self._tela = (e.tela_x, e.tela_y)
+        self._tela_ant = None
+        return self._observacao(e), {"score": e.score, "tela_x": e.tela_x,
+                                    "tela_y": e.tela_y,
+                                    "ev_flip_acerto": e.ev_flip_acerto,
+                                    "tempo_s": e.tempo_s,
+                                    "rank": int(getattr(e, "rank", 1)),
+                                    "progresso": int(getattr(e, "progresso", 0))}
 
     def step(self, action: int):
         # Com atraso, a acao decidida agora entra numa fila e so' e' aplicada
@@ -179,8 +279,14 @@ class SpaceCadetEnv(gym.Env):
             aplicada = action
         esq = bool(aplicada & 1)
         dir_ = bool(aplicada & 2)
+        if self._zona is not None:
+            cel = (self._tela[0] // self._cel, self._tela[1] // self._cel)
+            esq = esq and cel in self._zona['esq']
+            dir_ = dir_ and cel in self._zona['dir']
         e = _core.passo(esq, dir_, quadros=self.quadros)
         self._passos += 1
+        self._tela_ant = self._tela if hasattr(self, '_tela') else None
+        self._tela = (e.tela_x, e.tela_y)
 
         ganho = e.score - self._score_ant
         self._score_ant = e.score
@@ -232,13 +338,54 @@ class SpaceCadetEnv(gym.Env):
                 rec_mult += self.peso_mult_nivel * escala[min(nv - 1, 3)]
         self._malvos_ant, self._mnivel_ant = malvos, mnivel
 
+        # --- medal targets -------------------------------------------------
+        medal = int(getattr(e, "ev_medal", 0))
+        rec_medal = 0.0
+        if self.peso_medal and medal > self._medal_ant:
+            rec_medal += self.peso_medal * (medal - self._medal_ant)
+            # a cada 3 alvos um conjunto fecha; premia o conjunto a mais
+            conj = medal // 3
+            if conj > self._conj_ant:
+                rec_medal += self.peso_medal * 4.0 * (conj - self._conj_ant)
+                self._conj_ant = conj
+        self._medal_ant = medal
+
+        # so' bordas: paga quem inicia a tacada, nao quem segura a pa'
+        bordas = (esq and not self._flip_ant[0]) + (dir_ and not self._flip_ant[1])
+        rec_flip = -self.custo_flip * bordas
+        acertos = e.ev_flip_acerto - self._acerto_ant
+        self._acerto_ant = e.ev_flip_acerto
+        rec_flip += self.peso_acerto * acertos
+        self._flip_ant = (esq, dir_)
+
         rec_base = rec
-        rec += rec_prog + rec_ev + rec_mult
+        # potencial: rank normalizado, com gamma igual ao do treino
+        rec_pot = 0.0
+        if self.peso_potencial:
+            pot = rank / 9.0
+            # gamma=1 no shaping: com 0,995 e potencial constante o termo fica
+            # negativo todo passo ((gamma-1)*P), penalizando durar - e durar e'
+            # justamente o que pontua aqui. Telescopico puro soma P_fim - P_inicio.
+            rec_pot = self.peso_potencial * (pot - self._pot_ant)
+            self._pot_ant = pot
+        # novidade: bonus decrescente por celula (rank, multiplicador)
+        rec_nov = 0.0
+        if self.peso_novidade:
+            cel = (rank, int(getattr(e, "multiplicador", 1)))
+            n = self._visitas.get(cel, 0) + 1
+            self._visitas[cel] = n
+            rec_nov = self.peso_novidade / np.sqrt(n)
+
+        rec += rec_prog + rec_ev + rec_mult + rec_medal + rec_flip + rec_pot + rec_nov
         self._prog_ant, self._rank_ant = prog, rank
 
         terminado = bool(e.fim)
         truncado = self._passos >= self.max_passos
         info = {"score": e.score, "tempo_s": e.tempo_s,
+                "rank": int(getattr(e, "rank", 1)),
+                "progresso": int(getattr(e, "progresso", 0)),
+                "ev_flip_acerto": e.ev_flip_acerto,
+                "tela_x": e.tela_x, "tela_y": e.tela_y,
                 "rank": rank, "progresso": prog,
                 "multiplicador": int(getattr(e, "multiplicador", 0)),
                 "mult_alvos": int(getattr(e, "mult_alvos", 0)),
@@ -254,6 +401,7 @@ class SpaceCadetEnv(gym.Env):
                 "bolas_extras": int(getattr(e, "bolas_extras", 0)),
                 "extra_ganha": int(getattr(e, "ev_extra_ganha", 0)),
                 "rec_base": rec_base, "rec_prog": rec_prog, "rec_ev": rec_ev,
+                "rec_medal": rec_medal,
                 "rec_mult": rec_mult,
                 "bolas_restantes": e.bolas_restantes,
                 # posicao em pixels, para render externo (animacoes)

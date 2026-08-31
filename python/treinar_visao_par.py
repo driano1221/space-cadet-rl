@@ -8,16 +8,25 @@ import numpy as np
 import torch
 from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize
+from stable_baselines3.common.callbacks import CheckpointCallback
 from vecenv import fabrica
 from cnn import VisaoMesaExtractor
 
-DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+# A GPU aqui e' uma 3050 Laptop de 4 GiB compartilhada com o navegador, e um
+# pico dela mata o treino com OOM. Como o gargalo e' a simulacao do jogo e nao
+# a rede, PINBALL_DEVICE=cpu troca sem custo relevante de velocidade.
+DEVICE = os.environ.get("PINBALL_DEVICE") or ("cuda" if torch.cuda.is_available() else "cpu")
 
 
 def avaliar(politica, n=40, rotulo=""):
     """Avalia em um ambiente proprio, fora do vetorizado."""
     from spacecadet_gym import SpaceCadetEnv
-    env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=12000)
+    # o env da avaliacao tem de ter a MESMA observacao do treino, senao o
+    # modelo recebe 15 campos esperando 18
+    env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=12000,
+                        prever=prever,
+                        peso_potencial=peso_pot, peso_novidade=peso_nov,
+                        bolas=bolas)
     sc, du, rk, pg = [], [], [], []
     ev_alvo, ev_miss = [], []
     for _ in range(n):
@@ -55,9 +64,21 @@ if __name__ == "__main__":
     # nao sumirem na soma.
     peso_alvo = float(sys.argv[6]) if len(sys.argv) > 6 else 0.0
     peso_mult = float(sys.argv[7]) if len(sys.argv) > 7 else 0.0
+    peso_medal = float(sys.argv[8]) if len(sys.argv) > 8 else 0.0
+    # custo por acionar flipper (borda). 0.005 = ~5% da recompensa media
+    custo_flip = float(sys.argv[9]) if len(sys.argv) > 9 else 0.0
+    # previsao de trajetoria na observacao (quando/onde a bola cruza a linha dos
+    # flippers). Heuristica de 3 linhas usando so' isso ja' faz 965 mil pontos.
+    prever = (len(sys.argv) > 11 and sys.argv[11] == "prever")
+    peso_pot = float(sys.argv[12]) if len(sys.argv) > 12 else 0.0   # ideia 4
+    peso_nov = float(sys.argv[13]) if len(sys.argv) > 13 else 0.0   # ideia 2
+    bolas = int(sys.argv[14]) if len(sys.argv) > 14 else 0          # ideia 3
+    # peso da TACADA (flipper em movimento conecta com a bola). 1.0 deixa um
+    # acerto valendo o mesmo que um evento tipico de pontuacao (~1,15).
+    peso_acerto = float(sys.argv[10]) if len(sys.argv) > 10 else 0.0
 
     print(f"=== VISAO | recompensa={recompensa} | {passos} passos | "
-          f"{n_envs} ambientes | peso_prog={peso_prog} peso_alvo={peso_alvo} "
+          f"{n_envs} ambientes | peso_prog={peso_prog} peso_alvo={peso_alvo} custo={custo_flip} acerto={peso_acerto} prever={prever} pot={peso_pot} nov={peso_nov} bolas={bolas} "
           f"| {DEVICE} ===", flush=True)
     rng = np.random.default_rng(7)
     print("ANTES:", flush=True)
@@ -72,7 +93,13 @@ if __name__ == "__main__":
                                   peso_rampa=peso_alvo * 4,
                                   peso_missao=peso_alvo * 20,
                                   peso_mult_alvo=peso_mult,
-                                  peso_mult_nivel=peso_mult * 4)
+                                  peso_mult_nivel=peso_mult * 4,
+                                  peso_medal=peso_medal,
+                                  custo_flip=custo_flip,
+                                  peso_acerto=peso_acerto,
+                                  prever=prever,
+                                  peso_potencial=peso_pot,
+                                  peso_novidade=peso_nov, bolas=bolas)
                           for i in range(n_envs)])
     venv = VecNormalize(venv, norm_obs=False, norm_reward=True, clip_reward=10.0)
 
@@ -83,7 +110,13 @@ if __name__ == "__main__":
                                features_extractor_kwargs=dict(dim_saida=256),
                                normalize_images=False))
     t0 = time.perf_counter()
-    m.learn(total_timesteps=passos)
+    # A GPU de 4 GiB e' compartilhada com o navegador e ja' matou um treino com
+    # OOM transitorio na primeira iteracao. Checkpoint a cada 250k passos limita
+    # o prejuizo de uma queda a ~12 min em vez do treino inteiro.
+    ckpt = CheckpointCallback(save_freq=max(250_000 // n_envs, 1),
+                              save_path=os.path.join(os.path.dirname(__file__), 'ckpt'),
+                              name_prefix=tag)
+    m.learn(total_timesteps=passos, callback=ckpt)
     dt = time.perf_counter() - t0
     print(f"treino: {dt:.0f}s ({passos/dt:.0f} passos/s)", flush=True)
     m.save(f"ppo_{tag}"); venv.close()

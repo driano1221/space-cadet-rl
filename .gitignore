@@ -8,3 +8,5 @@ python/__pycache__/
 python/*.zip
 python/*.log
 *.pyc
+python/ckpt/
+analise/*.log
