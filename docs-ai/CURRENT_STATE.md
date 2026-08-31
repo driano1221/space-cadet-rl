@@ -288,3 +288,232 @@ as luzes. Fica na faixa boa por acidente.
 
 Contadores adicionados ao estado: `ev_bumper`, `ev_hyperspace`, `ev_medal`,
 `bolas_extras`.
+
+## Passo 13 — o flipper: punir, premiar, e o que nao mudou (30/08)
+
+Partiu de uma observacao do Adriano nos GIFs: "fica muito feio os flippers
+disparando sozinhos, nao parece algo real jogando". A medicao deu razao a ele -
+**flipper ligado em 71% dos passos, 3,9 acionamentos/s**, e um mapa 5x5 da
+posicao relativa da bola mostrou **uma unica celula de mira** (89%) contra 24
+celulas planas (24-59%).
+
+Causa: **acionar flipper e' gratis**. Nada no jogo penaliza bater no vazio.
+
+### Dois tratamentos, mesma conclusao
+
+**`ppo_c9_custoflip`** — custo de 0,005 por borda desligado->ligado, calibrado em
+~5% da recompensa media. Nao cobrei o hold porque *trapping* e' tecnica legitima.
+Foi exatamente a brecha: ele reduziu bordas **segurando a pa' 45% mais tempo**
+(110/132 ms -> 160/182 ms), ficou com o flipper erguido 79,5% do tempo e perdeu
+56% do score. Visualmente pior que o spam original.
+
+**`ppo_c9_acerto`** — recompensa de 1,0 por **tacada real**, evento novo
+`ev_flip_acerto` vindo do `collisionFlag` de `TFlipper::FlipperCollision`. Como a
+funcao so' roda com a pa' em movimento, segurar nunca paga - a brecha anterior
+nao se repete. Desfez o hold (73% -> 64% erguido, p<0,001) mas nao criou
+pontaria.
+
+### O numero que nao se mexe
+
+```
+modelo       score       tacadas/s  acionam/s  PONTARIA  erguido
+base         2.637.750     0,17       7,44      2,3%      73,0%
+custoflip    1.165.625     0,15       6,21      2,4%      79,5%
+acerto       2.138.000     0,17       7,28      2,4%      64,1%
+```
+
+**A fracao de apertos que conecta fica em 2,3% nos tres.** Punir, premiar e
+reorganizar nao mexem na pontaria (p = 0,97 e 0,21). O unico efeito significativo
+foi sobre o tempo com a pa' erguida.
+
+Leitura: o limite **nao e' incentivo, e' percepcao**. Ele nao preve onde a bola
+estara em 75 ms com precisao para sincronizar a pa'. E 2,3% de acerto significa
+que ele usa os flippers como **parede**, nao como taco - colisao com pa' parada
+nao conta como tacada, e e' assim que mantem a bola viva.
+
+### Metodo
+
+Uma tentativa de detectar tacada por **salto de velocidade** foi descartada pelo
+controle: lift de apenas **1,15x** sobre instantes aleatorios (qualquer bumper
+acelera a bola). Foi o que obrigou a instrumentar o evento no C++ em vez de
+inferir de fora - e o que impediu, naquele momento, calibrar a zona do flipper.
+
+Dados: `analise/eda_episodios.csv` (30 episodios) e `eda_acionamentos.csv`
+(203.741 acionamentos com posicao relativa e se conectou). Graficos:
+`eda_flip_painel.png`, `eda_efeitos.png`, `eda_zona_tacada.png`. Script R:
+`analise/eda_flip.R`.
+
+### Pendente
+
+**Action masking** (ideia do Adriano): em vez de tentar ensinar a zona util,
+proibir o flipper fora dela. As tres tentativas por recompensa falharam porque
+dependiam de ele *aprender* a mirar; a mascara nao depende, impoe. A zona sai da
+nuvem de `eda_acionamentos.csv` filtrada por `acertou == 1`, medida no **inicio**
+do movimento (a pa' leva tempo para subir - liberar so' no contato produz
+acionamento atrasado).
+
+### Armadilhas registradas
+
+- A avaliacao interna do treinador deu **+20%** para o `acerto`; a medicao
+  pareada deu **-18,9%**. Nunca reportar a interna.
+- `treinar_visao_par.py` salva como `ppo_{tag}` - passar a tag **sem** o prefixo.
+- `cmake` nao esta' no PATH do bash; usar o caminho do Visual Studio.
+- `expandable_segments` do PyTorch **nao funciona no Windows**; a protecao contra
+  o OOM da GPU de 4 GiB e' o `CheckpointCallback` a cada 250k passos.
+
+## Passo 14 — action masking: a geometria resolve o que a recompensa nao resolve (30/08)
+
+Ideia do Adriano: em vez de incentivar a mira, **remover a acao** onde ela e'
+inutil. O flipper so' pode ser acionado com a bola na zona em que alcanca.
+
+### O resultado
+
+```
+                          tacadas por acionamento/decisao
+agente base (livre)                  0,023
+com mascara, politica fixa           0,54 - 0,61
+com mascara, lado sorteado           0,808
+```
+
+**20x a 35x, sem aprendizado nenhum.** Punir, premiar e reorganizar recompensa
+nao mexeram nesse numero (passo 13); a restricao geometrica mexeu de imediato.
+
+### A zona
+
+Construida das tacadas reais (`ev_flip_acerto`), na posicao da bola no **inicio**
+do movimento - inclui a antecipacao da pa'. Nao e' retangulo: o formato real sao
+**duas nuvens com o dreno no meio**. Virou grade de celulas de 10 px com >= 6
+tacadas (`analise/zona_flipper.json`): 21 e 24 celulas, ~90% das tacadas, com
+visitas de 4/min e duracao mediana de 63 ms.
+
+### Espaco de acao por opcoes (semi-MDP)
+
+Cada decisao e' "qual pa' e quanto esperar", tomada quando a bola entra na zona.
+Passo interno de 1 quadro (8,33 ms) da' resolucao menor que a do env normal, e o
+credito vira "uma decisao, um resultado" em vez de diluido.
+Implementacao em `python/env_opcoes.py`, treino em `python/treinar_opcoes.py`.
+
+### Tres erros corrigidos neste passo
+
+**1. O jogo roda a 120 quadros/s, nao 40.** `kPassoMs = 1000/120`. Assumi 40 em
+todo script de analise e reportei taxas 3x erradas por horas. A curva de reacao
+NAO foi afetada (o gym usa 1000/120 corretamente). Detalhes na memoria
+`2026-08-30-jogo-roda-a-120-fps`.
+
+**2. O flipper errado era acionado.** As duas zonas se sobrepoem ~60% (a bola
+desce pelo mesmo funil) e o codigo parava no primeiro da lista `("esq","dir")` -
+acionava a esquerda por ordem alfabetica. **O Adriano viu isso nos videos antes
+de qualquer metrica acusar.** Nao ha' criterio automatico: o melhor limiar de
+posicao separa os lados com 56,3% contra 50% de chute. O lado virou decisao do
+agente (7 -> 13 acoes).
+
+**3. A faixa de esperas cabia toda no plato.** Consequencia do erro 1: eram
+0-50 ms, nao 0-150 ms. Varredura com politica fixa mostrou plato de 0 a 200 ms
+(0,49-0,61) e queda a partir de 300 ms (0,37 -> 0,16 a 450 ms), com drenos
+subindo de 2 para 6. Faixa nova: 0, 50, 100, 150, 200, 300 ms.
+
+### Invalidado
+
+`ppo_c9_opcoes` e `ppo_c9_opcoes_macro` rodaram com o bug do lado. O score de
+~190 mil e a conclusao de que "a mascara mata o desempenho" **nao valem**.
+
+### Verificacoes antes de treinar
+
+| Checagem | Script | Resultado |
+|---|---|---|
+| acao -> flipper certo | `teste_lados.py` | pa' pedida 0,73, a outra 0,00 |
+| contagem de pontos | `teste_contagem.py` | 0 divergencias, 0 buracos |
+| as duas reguas diferem | `teste_compressao.py` | 3,42x |
+| o lado carrega sinal | `testa_lado_importa.py` | sorteado 0,808 > fixos |
+| faixa de espera | `varre_esperas.py` | plato ate' 200 ms |
+
+### Pendente
+
+Treino `c9_opcoes_lado` (45 mil decisoes, ~50 min) com tudo corrigido. Baseline
+a bater: **0,808 tacadas/decisao e 15.173 pontos/decisao** do lado sorteado - se
+nao superar, o RL nao agrega sobre a heuristica.
+
+## Passo 15 — previsao de trajetoria: o primeiro efeito real na pontaria (31/08)
+
+Ideia do Adriano ("essa questao de ver a bola e' uma boa"), confirmada pela
+literatura: agentes de Pong e Breakout **preveem onde a bola cruza a linha da
+raquete** em vez de aprender a extrapolar. Tres campos novos na observacao
+(15 -> 18): quadros ate' a linha dos flippers, x previsto, e se a bola desce.
+
+Viabilidade medida antes de treinar: extrapolacao linear erra 4,5 px em 67 ms e
+**2,8 px** na posicao em que cruza a linha (raio da bola = 7 px). A gravidade nao
+acrescenta nada - aceleracao mediana zero, porque a bola quica o tempo todo.
+
+### Resultado (40 episodios completos, 284.494 acionamentos)
+
+```
+modelo       score       tacadas/s  acionam/s  PONTARIA  erguido  duracao
+base       2.637.750       0,17       7,44      2,3%      73,0%    375s
+custoflip  1.165.625       0,15       6,21      2,4%      79,5%    219s
+acerto     2.138.000       0,17       7,28      2,4%      64,1%    290s
+prever     2.107.375       0,18       6,59      2,7%      71,0%    383s
+```
+
+| metrica | prever vs base | p |
+|---|---|---|
+| **pontaria** | **+16,6%** | **0,0008** |
+| acionamentos/s | -11,7% | <0,001 |
+| score | -20,1% | 0,796 |
+| duracao | +2,2% | 0,853 |
+
+**Primeiro efeito significativo na pontaria do projeto**, e obtido **apertando
+menos** - selecao, nao volume. E o unico tratamento que preservou a duracao
+(custoflip perdeu 41,5%, p=0,019; acerto perdeu 22,8%).
+
+O score empatou: pontuar aqui depende de tempo em jogo, e ele ja' estava no teto
+que a estrategia de parede permite.
+
+## O achado que reordena o projeto: tempo em jogo e' que pontua
+
+Politicas fixas, episodios completos:
+
+```
+heuristica (previsao)    965.875 pts    261s
+heuristica + mascara     165.250 pts     88s
+sempre ambos              38.750 pts   7207s   <- teto de 2 horas
+ppo_c9_base            2.490.750 pts    372s
+```
+
+**Com as duas pa's erguidas a bola nao drena** - durou 2 horas. Quem pontua no
+Space Cadet e' a **mesa** (bumpers, rampas, alvos); os flippers so' mantem a bola
+viva. A estrategia otima nao e' "bater bem", e' "durar".
+
+Consequencia: a mascara de zona **impede a parede**, e e' por isso que mata o
+score - a mesma heuristica cai de 965 mil para 165 mil so' por liga-la.
+
+Uma heuristica de 3 linhas usando so' as features de previsao faz **965 mil
+pontos sem treino nenhum**, 39% do agente treinado com 2,5M de passos.
+
+## Linha do action masking: encerrada
+
+Os tres treinos do env de opcoes convergiram para o mesmo teto:
+
+```
+gamma 0,95   156.250    ambos 100%
+gamma 0,70   197.125    ambos 100%
+lado unico   192.250    ESQ 100%
+aleatorio    198.750
+```
+
+Nenhum superou o aleatorio. O desenho pedia **predicao** (decidir a espera antes
+de saber onde a bola vai) de um agente que so' sabe **reagir** - a curva de
+reacao ja' mostrava isso. Com γ menor o colapso em "ambos" permaneceu, entao a
+hipotese de credito diluido esta' descartada: "ambos" e' a resposta racional a
+uma pergunta mal formulada.
+
+### Erros corrigidos neste passo
+
+- **Zona dilatada isotropicamente subia ate' os bumpers.** O Adriano viu na
+  imagem. Refeita pela **trajetoria real** (celulas por onde a bola passou nos
+  100 ms antes de cada tacada): de 196 celulas para 57, na faixa y 310-390.
+- **O env da avaliacao precisa do mesmo `prever` do treino**, senao o modelo
+  recebe 15 campos esperando 18.
+- **`$(grep -c X arq || echo 0)` devolve "0\n0"** quando nao acha, e "0\n0" !=
+  "0" - o vigia declarou "AMBOS PRONTOS" sobre nada. Usar `grep -q`.
+- **`sed` interpreta `\U` como maiusculas**: destruiu um caminho do Windows.
+  Usar Python ou barras normais.

@@ -1,154 +1,92 @@
-# Space Cadet Pinball como ambiente instrumentado
+# RL no 3D Pinball Space Cadet
 
-Experimento de engenharia reversa aplicada: transformar o *3D Pinball for
-Windows - Space Cadet* num ambiente que gera dados em massa, para depois
-treinar e **analisar estatisticamente** um agente.
+Um agente de RL que joga o pinball do Windows XP, treinado sobre uma
+**decompilacao instrumentada** do jogo — o estado vem da fisica em C++, nao de
+leitura de tela.
 
-> **Status: o agente aprendeu a rebater - por reflexo, nao por estrategia.**
-> Um PPO com visao da mesa supera a politica aleatoria em **4,3x**
-> (1.740.875 contra 404.375, Mann-Whitney p = 5,7e-15).
+A pergunta que o projeto acabou respondendo nao foi "da para bater o recorde?",
+e sim **"o agente e bom por competencia ou por velocidade de reflexo?"**.
 
-## O resultado
+## O resultado principal
 
-| Agente | Score mediano | Duracao |
-|---|---|---|
-| **PPO com visao da mesa** | **1.740.875** | 292 s |
-| Aleatorio | 404.375 | 173 s |
-| PPO sem visao | 212.500 | 104 s |
+O agente faz **2,6 milhoes** de pontos (mediana, partidas sem teto de tempo),
+contra 404 mil de uma politica aleatoria. Parece competencia. Mas basta atrasar
+as acoes dele para ver de onde vem a vantagem:
 
-![resultado](analise/resultado_final.png)
-
-Mesma arquitetura, mesma recompensa, mesmo algoritmo nos dois PPO. A unica
-diferenca e' que um enxerga a mesa. Sem a visao o agente nao podia aprender a
-mirar, porque os alvos nao existiam na percepcao dele.
-
-O que a rede olha, por saliencia: velocidade da bola 35,6%, canais da mesa
-39,4%, com as **luzes acesas pesando mais que qualquer objeto fixo** - sao o
-unico canal dinamico, indicando quais missoes estao ativas.
-
-![saliencia](analise/saliencia.png)
-
-## A ressalva que muda tudo
-
-O agente faz 4,3x o acaso **com tempo de reacao zero**. Impondo atraso entre a
-decisao e a acao:
-
-| Atraso | Score | vs. acaso |
+| Atraso | Score mediano | vs. acaso |
 |---|---|---|
 | 0 ms | 1.552.750 | 3,8x |
 | 50 ms | 320.625 | 0,79x |
-| **250 ms** (latencia humana) | **251.000** | **0,62x** |
+| **250 ms** (reacao humana) | **251.000** | **0,62x** |
 
-Nao e' declinio gradual, e' um degrau: 50 ms - ainda 5x mais rapido que uma
-pessoa - ja' custam 79% do score. **Com reflexos humanos, o agente joga pior que
-apertar botoes ao acaso.**
+**Com latencia humana, ele joga pior que apertar botao ao acaso.** Nao e um
+declinio gradual: ja com 50 ms — cinco vezes mais rapido que uma pessoa — ele
+perde 79%. A vantagem inteira vive numa janela que nenhum humano alcanca.
 
-![reacao](analise/reacao.png)
+## O que sustenta essa conclusao
 
-A competencia dele e' motora, nao cognitiva. Isso e' coerente com tudo o mais
-que medimos: nao completa missoes, nao fecha trincas do multiplicador, nao faz
-*cradle* (parar a bola para mirar) mais que o acaso, e nao descobriu o loop de
-pontuacao que as regras da mesa mencionam.
+Cinco tratamentos independentes tentaram melhorar a **pontaria** (fracao de
+apertos que conectam com a bola, 2,3% no agente base):
 
-## O teto: quatro hipoteses, tres descartadas
+| Tratamento | Pontaria | Duracao | Score |
+|---|---|---|---|
+| Punir acionamento | sem efeito (p=0,97) | **-41%** | -56% |
+| Premiar tacada | sem efeito (p=0,21) | -23% | -19% |
+| Action masking | **+20x a +35x** | -66% | -83% |
+| Credito local (gamma) | sem efeito | — | empate |
+| **Prever trajetoria** | **+17% (p=0,0008)** | preservada | empate |
 
-| Hipotese | Como foi testada | Veredito |
-|---|---|---|
-| Percepcao | dar a mesa em grade | **era isso, em parte** - 4,3x |
-| Escala | 2,5M / 5M / 7,5M passos | descartada (p = 0,55 e 0,48) |
-| Incentivo | 3 shapings distintos | descartada |
-| Memoria temporal | AUC com 1 a 16 quadros | descartada (+0,012, satura) |
-| Algoritmo (off-policy) | - | bloqueada: buffer exigiria 68 GB |
+Nenhum sinal de recompensa move a pontaria; restringir a acao move muito. E
+melhorar a pontaria **nao melhora o placar** — porque quem pontua nesta mesa e a
+mesa (bumpers, rampas, alvos), e os flippers so mantem a bola viva. A politica
+"segurar as duas pa's erguidas" sobreviveu **2 horas** sem perder a bola.
 
-## A infraestrutura que tornou isso possivel
+## Como rodar
 
-| Metrica | Valor |
-|---|---|
-| Velocidade de simulacao | **941x tempo real** |
-| Episodios por segundo | 5,6 |
-| 1000 partidas completas | 3 minutos (46 h de tempo de jogo) |
-| Determinismo | mesma semente produz CSV identico byte a byte |
+```bash
+# treinar (2,5M passos, ~1h em GPU)
+python python/treinar_visao_par.py 2500000 minha_tag 6 score 0 0 0 0 0 0 True
 
-Para comparacao, o projeto publico mais proximo
-([space-cadet-nn](https://github.com/angelowilliams/space-cadet-nn)) leva
-**20 minutos para 20 partidas** usando captura de tela.
+# avaliar sem teto de tempo
+python python/sem_teto.py ppo_minha_tag 10
+
+# gerar clipes do agente jogando
+python python/clipes.py ppo_minha_tag 6 12
+
+# EDA comparando agentes
+Rscript analise/eda_flip.R
+```
+
+`PINBALL_DEVICE=cpu` força CPU (a GPU de 4 GiB e compartilhada com o navegador e
+ja matou um treino com OOM).
 
 ## Estrutura
 
-```text
-SpaceCadetPinball/   decompilacao (k4zmu2a) + instrumentacao propria
-  SpaceCadetPinball/rlmode.cpp    modo headless de coleta (~140 linhas)
-analise/             scripts R e dados gerados
-  dados/             CSVs das rodadas
-  scripts/           utilitarios de conferencia em Python
-docs-ai/             contexto para retomar o trabalho
+```
+python/        ambientes, treinadores, self-checks e medicoes
+  spacecadet_gym.py    o gym.Env principal (visao, previsao, mascara, shaping)
+  env_opcoes*.py       semi-MDP: o agente escolhe quanto esperar (linha encerrada)
+  treinar_*.py         treinadores
+  teste_*.py           self-checks com assert
+  varre_*.py, spam.py  medicoes que antecedem treino
+analise/       scripts R, graficos, CSVs e a zona do flipper
+  midia/               clipes representativos
+docs-ai/       estado, decisoes e dicionario de dados
+SpaceCadetPinball/     fork instrumentado (repositorio proprio, branch rl-instrumentation)
 ```
 
-## Como reproduzir
+## Metodo
 
-Compilar (precisa de Visual Studio 2022 e das libs SDL2 em `Libs/`):
+Duas regras que emergiram do projeto e evitaram varios erros:
 
-```powershell
-cd SpaceCadetPinball
-cmake -S . -B build -G "Visual Studio 17 2022" -A x64
-cmake --build build --config Release
-```
+**Medir a frequencia do evento antes de treinar.** Ja evitou quatro treinos
+inuteis — se o agente so ve o evento 3 vezes por partida, nenhum peso de
+recompensa vai ensina-lo.
 
-Coletar dados (o `PINBALL.DAT` precisa estar junto do executavel):
+**Todo numero derivado precisa de controle contra o acaso.** O detector de
+tacada por "salto de velocidade da bola" parecia funcionar e dava lift de apenas
+1,15x sobre instantes aleatorios: media ruido, porque qualquer bumper acelera a
+bola. Foi substituido por um contador lido da propria fisica do jogo.
 
-```bash
-cd SpaceCadetPinball/bin/Release
-SDL_VIDEODRIVER=dummy ./SpaceCadetPinball.exe -rl-episodes 1000 -rl-seed 42 -rl-policy 1
-```
-
-Politicas: `0` nunca aperta, `1` aleatoria, `2` sempre apertado.
-Adicione `-rl-trace 6` para gravar tambem a trajetoria (uma linha a cada 6
-passos), ou `-rl-prob 30` para fixar a probabilidade de apertar em 30%.
-As duas degeneradas existem como **controle**: se o input parar de chegar ao
-jogo, as tres distribuicoes de score ficam iguais.
-
-Analisar:
-
-```bash
-cd analise
-Rscript baseline.R        # distribuicao do baseline aleatorio
-Rscript validacao.R       # as tres politicas de controle
-Rscript conflito.R        # varredura de agressividade
-python validacao_visual.py  # densidade e trajetoria sobre a mesa
-```
-
-## Validacao
-
-A trajetoria de uma partida sobre a mesa real. A bola sobe pelo canal do plunger
-a direita (linha ciano, o inicio), curva no topo e entra na mesa - a fisica e' a
-do jogo original, nao uma aproximacao.
-
-![trajetoria](analise/validacao_trajetoria.png)
-
-Densidade de posicoes por politica: os obstaculos aparecem como regioes frias.
-
-![densidade](analise/validacao_densidade.png)
-
-## O conflito entre sobreviver e pontuar
-
-Varrendo a probabilidade de apertar o flipper de 0 a 100%:
-
-| Prob. apertar | Score mediano | Duracao (s) |
-|---|---|---|
-| 0% | 145.125 | 90 |
-| **30%** | **413.625** | 162 |
-| 50% | 401.875 | 168 |
-| 95% | 247.375 | 314 |
-| 100% | **16.000** | **597** |
-
-![conflito](analise/conflito_sobreviver_pontuar.png)
-
-De 95% para 100% o score cai 15x e a duracao dobra. Travar os flippers e' um
-ponto isolado, nao um atrator suave: o caminho ate' o otimo (~30%) e' um
-gradiente monotono.
-
-## Creditos
-
-Construido sobre a decompilacao
-[k4zmu2a/SpaceCadetPinball](https://github.com/k4zmu2a/SpaceCadetPinball).
-A instrumentacao esta na branch `rl-instrumentation`, em um unico commit.
+Ver [docs-ai/DICIONARIO.md](docs-ai/DICIONARIO.md) para os campos e unidades, e
+[docs-ai/DECISIONS.md](docs-ai/DECISIONS.md) para o historico de decisoes.
