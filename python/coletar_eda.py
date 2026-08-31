@@ -25,10 +25,14 @@ SAIDA = os.path.join(os.path.dirname(__file__), "..", "analise")
 
 ep_rows, ac_rows = [], []
 for tag in TAGS:
-    # o modelo com previsao espera 18 campos na observacao; o resto, 15
-    env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=288_000,
-                        prever=tag.endswith("prever"))
+    # A dimensao da observacao tem de bater com a do treino: 18 campos com
+    # previsao, 15 sem. Deduzir pelo nome da tag falhou quando as cinco ideias
+    # passaram a usar prever sem "prever" no nome - agora leio do proprio modelo.
     m = PPO.load(tag, device="cpu")
+    dim = m.observation_space["vetor"].shape[0]
+    env = SpaceCadetEnv(quadros_por_passo=3, visao=True, max_passos=288_000,
+                        prever=(dim == 18))
+    print(f"  {tag}: obs {dim} campos, prever={dim == 18}", flush=True)
     for ep in range(N_EP):
         obs, _ = env.reset()
         V, A, AC = [], [], []

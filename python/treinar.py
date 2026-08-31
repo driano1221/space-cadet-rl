@@ -6,6 +6,13 @@ Uso: python treinar.py <recompensa> <passos>
 import sys, time, csv, json
 sys.path.insert(0, '.')
 import numpy as np
+
+
+def _saida(nome):
+    """Resultados vao para analise/resultados/, nao para a pasta de scripts."""
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analise", "resultados")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, nome)
 from spacecadet_gym import SpaceCadetEnv
 from stable_baselines3 import PPO
 from stable_baselines3.common.monitor import Monitor
@@ -45,7 +52,7 @@ print("DEPOIS (PPO treinado):", flush=True)
 sc_depois, dur_depois = avaliar(
     lambda o: int(modelo.predict(o, deterministic=True)[0]), 40, "ppo")
 
-with open(f"resultado_{recompensa}.csv", "w", newline="") as f:
+with open(_saida(f"resultado_{recompensa}.csv"), "w", newline="") as f:
     w = csv.writer(f); w.writerow(["fase", "score", "duracao"])
     for s, d in zip(sc_antes, dur_antes): w.writerow(["antes", s, d])
     for s, d in zip(sc_depois, dur_depois): w.writerow(["depois", s, d])
@@ -56,5 +63,5 @@ json.dump({"recompensa": recompensa, "passos": passos, "treino_s": treino_s,
            "mediana_depois": float(np.median(sc_depois)),
            "duracao_antes": float(np.mean(dur_antes)),
            "duracao_depois": float(np.mean(dur_depois))},
-          open(f"resumo_{recompensa}.json", "w"), indent=2)
+          open(_saida(f"resumo_{recompensa}.json"), "w"), indent=2)
 print("salvo.", flush=True)

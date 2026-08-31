@@ -15,6 +15,13 @@ from cnn import VisaoMesaExtractor
 # A GPU aqui e' uma 3050 Laptop de 4 GiB compartilhada com o navegador, e um
 # pico dela mata o treino com OOM. Como o gargalo e' a simulacao do jogo e nao
 # a rede, PINBALL_DEVICE=cpu troca sem custo relevante de velocidade.
+def _saida(nome):
+    """Resultados vao para analise/resultados/, nao para a pasta de scripts."""
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analise", "resultados")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, nome)
+
+
 DEVICE = os.environ.get("PINBALL_DEVICE") or ("cuda" if torch.cuda.is_available() else "cpu")
 
 
@@ -124,12 +131,12 @@ if __name__ == "__main__":
     print("DEPOIS:", flush=True)
     sd, dd = avaliar(lambda o: int(m.predict(o, deterministic=True)[0]), 40, "ppo")
 
-    with open(f"resultado_{tag}.csv", "w", newline="") as f:
+    with open(_saida(f"resultado_{tag}.csv"), "w", newline="") as f:
         w = csv.writer(f); w.writerow(["fase", "score", "duracao"])
         for s, d in zip(sa, da): w.writerow(["antes", s, d])
         for s, d in zip(sd, dd): w.writerow(["depois", s, d])
     json.dump({"mediana_antes": float(np.median(sa)), "mediana_depois": float(np.median(sd)),
                "duracao_antes": float(np.mean(da)), "duracao_depois": float(np.mean(dd)),
                "passos": passos, "treino_s": dt, "n_envs": n_envs},
-              open(f"resumo_{tag}.json", "w"), indent=2)
+              open(_saida(f"resumo_{tag}.json"), "w"), indent=2)
     print("salvo.", flush=True)

@@ -1,0 +1,9 @@
+{
+  "mediana_antes": 404375.0,
+  "mediana_depois": 160125.0,
+  "duracao_antes": 172.6156204223633,
+  "duracao_depois": 102.2408290863037,
+  "passos": 60000,
+  "treino_s": 68.35172639999655,
+  "n_envs": 6
+}

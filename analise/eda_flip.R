@@ -6,13 +6,19 @@ library(patchwork)
 
 ep <- read_csv("eda_episodios.csv", show_col_types = FALSE) |>
   mutate(modelo = fct_relevel(str_remove(modelo, "^ppo_c9_"),
-                              "base", "custoflip", "acerto", "prever"))
+                              "base", "prever", "i5_prog", "i4_pot",
+                              "i2_nov", "i3_bolas", "i6_longo"))
 ac <- read_csv("eda_acionamentos.csv", show_col_types = FALSE) |>
   mutate(modelo = fct_relevel(str_remove(modelo, "^ppo_c9_"),
-                              "base", "custoflip", "acerto", "prever"))
+                              "base", "prever", "i5_prog", "i4_pot",
+                              "i2_nov", "i3_bolas", "i6_longo"))
 
-cores <- c(base = "#7f7f7f", custoflip = "#d62728", acerto = "#2ca02c",
-           prever = "#1f77b4")
+# base e prever sao as referencias (cinza e azul); as cinco ideias em tons
+# quentes, para separar visualmente referencia de tratamento
+cores <- c(base = "#7f7f7f", prever = "#1f77b4",
+           i5_prog = "#d62728", i4_pot = "#ff7f0e", i2_nov = "#9467bd",
+           i3_bolas = "#8c564b", i6_longo = "#e377c2",
+           custoflip = "#c49c94", acerto = "#2ca02c")
 
 # 1. score: escala log, a cauda e' pesada demais para escala linear
 p1 <- ep |>

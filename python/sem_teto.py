@@ -12,6 +12,13 @@ Uso: python sem_teto.py [modelo] [n_ep]
 import sys, os, csv
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
+
+
+def _saida(nome):
+    """Resultados vao para analise/resultados/, nao para a pasta de scripts."""
+    d = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "analise", "resultados")
+    os.makedirs(d, exist_ok=True)
+    return os.path.join(d, nome)
 from spacecadet_gym import SpaceCadetEnv
 from stable_baselines3 import PPO
 
@@ -47,5 +54,5 @@ print(f"\nmediana {int(np.median(sc)):,}  max {int(sc.max()):,}")
 print(f"duracao media {tp.mean():.0f}s  max {tp.max():.0f}s")
 print(f"bolas extras: {sum(l['extras'] for l in linhas)} no total")
 print(f"chegaram ao teto de 2h: {sum(l['truncado'] for l in linhas)}/{N_EP}")
-with open(f"sem_teto_{tag}.csv", "w", newline="") as f:
+with open(_saida(f"sem_teto_{tag}.csv"), "w", newline="") as f:
     w = csv.DictWriter(f, fieldnames=list(linhas[0].keys())); w.writeheader(); w.writerows(linhas)
