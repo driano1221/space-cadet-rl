@@ -14,3 +14,5 @@ analise/*.log
 # clipes gerados: reproduziveis via clipes.py; a selecao curada vive em analise/midia/
 analise/clipes*/
 analise/Rplots.pdf
+analise/*_web.jpg
+analise/*.npz
