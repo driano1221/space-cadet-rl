@@ -22,17 +22,7 @@ that compiles and runs. Instead of screen-scraping it, I instrumented it:
 
 ![Architecture](docs/architecture.png)
 
-*Diagram source: [`docs/architecture.mmd`](docs/architecture.mmd).* GAME[Space Cadet C++ engine<br/>physics @ 120 Hz]
-    GAME --> INST[Instrumentation layer<br/>rlenv + event counters]
-    INST --> PYB[pybind11<br/>spacecadet_env]
-    PYB --> ENV[Gymnasium environment<br/>40 decisions/s]
-    ENV --> OBS[Observation<br/>9x36x28 grid + state vector]
-    OBS --> PPO[CNN + PPO<br/>Stable-Baselines3]
-    PPO -->|action| ENV
-    ENV --> EVAL[Evaluation<br/>score · duration · aim · latency]
-    EVAL --> R[R analysis<br/>statistics + figures]
-    R --> PAPER[Article]
--->
+*Diagram source: [`docs/architecture.mmd`](docs/architecture.mmd).*
 
 1. **[C++ hooks](cpp/README.md)** into the physics loop expose ball position,
    velocity, score and per-event counters (bumpers, ramps, medal targets,
