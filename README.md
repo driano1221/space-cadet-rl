@@ -50,9 +50,9 @@ run takes about an hour, roughly **17x real time** end to end.
 ![Where it presses vs where it connects](docs/where_it_connects.png)
 
 The base agent connects with the ball on only **2.3%** of its flipper presses.
-Reward-based attempts to fix that all failed: penalising presses, rewarding
-strikes, potential-based shaping, curiosity bonuses, a ball curriculum, 3x
-longer training.
+Several training-side interventions failed to improve that: penalising presses,
+rewarding strikes, potential-based shaping, curiosity bonuses, a ball
+curriculum, 3x longer training.
 
 Two things did improve aim. **Action masking** raised the hit rate 20-35x, by
 forbidding the flipper outside the region where it can actually reach the ball.
@@ -102,7 +102,8 @@ python scripts/train.py --config configs/trajectory.yaml
 # 6. evaluate
 python scripts/evaluate.py --model ppo_trajectory --episodes 10
 
-# 7. regenerate every figure in the article, from the data in data/paper/
+# 7. regenerate the figures backed by the published data (all but the
+#    saliency map, whose per-channel values are not in the CSVs)
 Rscript analise/install_packages.R
 Rscript scripts/reproduce_figures.R
 ```
