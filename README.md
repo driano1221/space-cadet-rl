@@ -20,7 +20,11 @@ strategy.
 The Windows XP pinball game has a [C++ decompilation](https://github.com/k4zmu2a/SpaceCadetPinball)
 that compiles and runs. Instead of screen-scraping it, I instrumented it:
 
-```mermaid
+![Architecture](docs/architecture.png)
+
+<!-- Fonte editavel do diagrama acima, caso precise ser refeito:
+
+flowchart LR
 flowchart LR
     DAT[PINBALL.DAT] --> GAME[Space Cadet C++ engine<br/>physics @ 120 Hz]
     GAME --> INST[Instrumentation layer<br/>rlenv + event counters]
@@ -32,7 +36,7 @@ flowchart LR
     ENV --> EVAL[Evaluation<br/>score · duration · aim · latency]
     EVAL --> R[R analysis<br/>statistics + figures]
     R --> PAPER[Article]
-```
+-->
 
 1. **[C++ hooks](cpp/README.md)** into the physics loop expose ball position,
    velocity, score and per-event counters (bumpers, ramps, medal targets,
