@@ -34,10 +34,15 @@ run takes about an hour, roughly **17x real time** end to end.
 
 ![Where it presses vs where it connects](docs/where_it_connects.png)
 
-The agent connects with the ball on only **2.3%** of its flipper presses. Eleven
-different interventions failed to improve that: penalising presses, rewarding
-strikes, action masking, potential-based shaping, curiosity bonuses, a ball
-curriculum, 3x longer training.
+The base agent connects with the ball on only **2.3%** of its flipper presses.
+Reward-based attempts to fix that all failed: penalising presses, rewarding
+strikes, potential-based shaping, curiosity bonuses, a ball curriculum, 3x
+longer training.
+
+Two things did improve aim. **Action masking** raised the hit rate 20-35x, by
+forbidding the flipper outside the region where it can actually reach the ball.
+**Trajectory prediction** raised it 16.6% (p = 0.0008). Neither improved the
+score.
 
 What did move was survival. Across all seven trained agents, **the ranking by
 score is identical to the ranking by episode duration**. In this game the table
