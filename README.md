@@ -22,11 +22,7 @@ that compiles and runs. Instead of screen-scraping it, I instrumented it:
 
 ![Architecture](docs/architecture.png)
 
-<!-- Fonte editavel do diagrama acima, caso precise ser refeito:
-
-flowchart LR
-flowchart LR
-    DAT[PINBALL.DAT] --> GAME[Space Cadet C++ engine<br/>physics @ 120 Hz]
+*Diagram source: [`docs/architecture.mmd`](docs/architecture.mmd).* GAME[Space Cadet C++ engine<br/>physics @ 120 Hz]
     GAME --> INST[Instrumentation layer<br/>rlenv + event counters]
     INST --> PYB[pybind11<br/>spacecadet_env]
     PYB --> ENV[Gymnasium environment<br/>40 decisions/s]
