@@ -40,3 +40,5 @@ analise/tacadas_tela.csv
 
 # modelos treinados salvos na raiz pelo scripts/train.py
 ppo_*.zip
+analise/mesa_fundo.png
+analise/zona_flipper.json
