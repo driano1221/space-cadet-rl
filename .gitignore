@@ -16,3 +16,8 @@ analise/clipes*/
 analise/Rplots.pdf
 analise/*_web.jpg
 analise/*.npz
+
+# o PDF e as imagens do README ficam versionados de proposito (docs/)
+!docs/*.pdf
+!docs/*.png
+!docs/*.gif

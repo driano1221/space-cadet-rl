@@ -1,0 +1,123 @@
+\documentclass[10pt,a4paper,twoside,twocolumn]{scrartcl}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[brazil]{babel}
+% Libertine e a fonte do boilerplate arabica
+\usepackage{libertine}
+\usepackage[libertine]{newtxmath}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs,longtable,array,colortbl}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{fancyvrb}
+\usepackage{scrlayer-scrpage}
+\usepackage[a4paper,margin=1.8cm,columnsep=0.75cm]{geometry}
+\usepackage{setspace}
+\setstretch{0.99}
+% hyperref fica de fora: a versao instalada exige um kernel LaTeX mais novo que
+% o do MiKTeX 23.10 desta maquina ("key property '.initial:e' is unknown")
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\providecommand{\pandocbounded}[1]{#1}
+% substitutos do hyperref: o link nao fica clicavel, mas o texto aparece e a URL
+% vai para a nota de rodape, entao nada se perde na versao impressa.
+% O pacote url quebra endereco longo em varias linhas; sem ele a URL estoura a
+% largura da coluna e invade a coluna vizinha.
+% xurl quebra a URL em qualquer ponto; o pacote url so' quebra em pontuacao, e
+% dominios longos ainda estouravam a coluna
+\usepackage{xurl}
+\urlstyle{tt}
+% nota de rodape em coluna estreita: sem \sloppy o TeX prefere estourar a
+% margem a quebrar a URL num ponto que ele considera ruim
+\renewcommand{\href}[2]{#2\footnote{\raggedright\tiny\sloppy
+  \hbadness=10000 \url{#1}}}
+\providecommand{\phantomsection}{}
+\providecommand{\hypertarget}[2]{#2}
+\providecommand{\texorpdfstring}[2]{#1}
+\providecommand{\citeproctext}{}
+
+% macros de destaque de sintaxe (CommentTok, KeywordTok, ...) que o pandoc gera
+% para os blocos de codigo; sem isto o Python do texto sai com comandos indefinidos
+$if(highlighting-macros)$
+$highlighting-macros$
+$endif$
+
+\definecolor{tinta}{HTML}{1a1a1a}
+\definecolor{destaque}{HTML}{1f3a5f}   % azul-petroleo sobrio, no lugar do vermelho
+\definecolor{linhatab}{HTML}{9aa4ad}
+\definecolor{fundotab}{HTML}{eef1f4}
+\color{tinta}
+
+\setkomafont{disposition}{\normalfont\bfseries}
+\addtokomafont{section}{\large}
+\addtokomafont{subsection}{\normalsize}
+% sem numeracao: e um relato, nao um artigo com referencia cruzada
+\setcounter{secnumdepth}{0}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.35em}
+\setlength{\emergencystretch}{3em}
+
+% citacoes com cara de citacao: recuo, fio lateral e italico
+\renewenvironment{quote}
+  {\begin{list}{}{\leftmargin=0.9em\rightmargin=0pt\topsep=0.5em}\item[]%
+   \color{destaque}\itshape\small
+   \hspace*{-0.9em}\rule[-0.4em]{1.2pt}{1.1em}\hspace{0.5em}\ignorespaces}
+  {\end{list}}
+
+% codigo: menor e sempre dentro da coluna, com quebra automatica
+\fvset{fontsize=\tiny,breaklines=true,breakanywhere=true,
+       frame=leftline,framerule=0.8pt,rulecolor=\color{linhatab},
+       xleftmargin=0.5em,framesep=0.5em}
+% o pandoc gera \begin{verbatim} (do LaTeX puro), que NAO quebra linha e estoura
+% a coluna. Redefinir para o Verbatim do fancyvrb faz o fvset acima valer.
+\DefineVerbatimEnvironment{verbatim}{Verbatim}{}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+\let\oldtexttt\texttt
+\renewcommand{\texttt}[1]{{\small\oldtexttt{#1}}}
+
+% tabelas fechadas, com regua mais forte e cabecalho destacado
+\setlength{\aboverulesep}{0pt}\setlength{\belowrulesep}{0pt}
+\setlength{\extrarowheight}{2pt}
+\renewcommand{\arraystretch}{1.12}
+\arrayrulecolor{linhatab}
+\pagestyle{scrheadings}
+\clearpairofpagestyles
+\ohead{\small\itshape Pinball, Paciência e um Viking}
+\ofoot*{\small\pagemark}
+
+% imagens e tabelas nunca passam da largura da coluna
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\makeatother
+\setkeys{Gin}{width=\maxwidth,keepaspectratio}
+
+% referencias: o citeproc do pandoc gera esta lista
+\newlength{\cslhangindent}\setlength{\cslhangindent}{1.5em}
+\newlength{\csllabelwidth}\setlength{\csllabelwidth}{3em}
+\newenvironment{CSLReferences}[2]{\small\setlength{\parindent}{0pt}%
+  \everypar{\hangindent=\cslhangindent\hangafter=1}}{\par}
+\newcommand{\CSLBlock}[1]{#1\hfill\break}
+\newcommand{\CSLLeftMargin}[1]{\parbox[t]{\csllabelwidth}{#1}}
+\newcommand{\CSLRightInline}[1]{\parbox[t]{\linewidth - \csllabelwidth}{#1}}
+\newcommand{\CSLIndent}[1]{\hspace{\cslhangindent}#1}
+
+\title{\Huge $title$}
+\subtitle{\normalsize $subtitle$}
+\author{$for(author)$$author$$sep$ \and $endfor$}
+\date{$date$}
+
+\begin{document}
+\twocolumn[
+  \begin{@twocolumnfalse}
+  \maketitle
+  \begin{abstract}
+  \noindent $abstract$
+  \end{abstract}
+  \vspace{1.2em}
+  \end{@twocolumnfalse}
+]
+
+$body$
+
+\end{document}

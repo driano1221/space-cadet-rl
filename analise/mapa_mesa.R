@@ -1,32 +1,40 @@
-# Validacao visual: se os dados de trajetoria forem reais, a densidade das
-# posicoes da bola tem de desenhar o formato da mesa. Serve tambem para
-# comparar ONDE cada politica mantem a bola.
-suppressMessages({library(data.table); library(ggplot2); library(dplyr)})
+# Onde a bola passa o tempo, por politica.
+#
+# Cuidado com os eixos: medido em 31/08, cor(y_fisica, tela_y) = +0,992 e
+# cor(x_fisica, tela_x) = -0,994. Ou seja, o y da fisica cresce PARA BAIXO
+# (como coordenada de tela) e o x cresce PARA A ESQUERDA. Plotar direto
+# devolve a mesa espelhada nos dois eixos, que foi como esta figura saiu na
+# primeira versao do artigo.
+suppressMessages({library(data.table); library(ggplot2); library(scales)})
+source("tema_artigo.R")
 
-dir <- "C:/Users/drian/Games/pinball_rl/analise/dados"
-rot <- c("0" = "Nula (nunca aperta)", "1" = "Aleatoria", "2" = "Sempre apertado")
+ler <- function(arq, rotulo) {
+  d <- fread(file.path("dados", arq), select = c("x", "y"))
+  d[, politica := rotulo][]
+}
 
-d <- rbindlist(lapply(0:2, \(p) {
-  x <- fread(file.path(dir, sprintf("rl_trace_p%d.csv", p)),
-             select = c("bola_x", "bola_y", "score", "tempo_s", "episodio"))
-  x[, politica := rot[as.character(p)]]
-}))
-d <- d[bola_x > -90]
-d[, politica := factor(politica, levels = rot)]
-cat("linhas totais:", format(nrow(d), big.mark = "."), "\n")
+d <- rbindlist(list(
+  ler("eda_aleatoria.csv",  "Aleatória"),
+  ler("eda_heuristica.csv", "Heurística defensiva (berço)")
+), fill = TRUE)
 
-g <- ggplot(d, aes(bola_x, bola_y)) +
-  geom_bin2d(bins = 90) +
-  scale_fill_viridis_c(option = "inferno", trans = "log10",
-                       labels = scales::label_number(scale_cut = scales::cut_short_scale()),
-                       name = "Passos") +
+g <- ggplot(d, aes(x, y)) +
+  stat_bin2d(bins = 90) +
+  scale_fill_gradientn(
+    colours = c("#f2f5f8", "#b9c6d4", "#5b7fa6", DESTAQUE, "#16243a"),
+    trans = "log10", labels = label_number(scale_cut = cut_short_scale()),
+    name = "passos") +
+  scale_x_reverse() +   # x da fisica cresce para a esquerda
+  scale_y_reverse() +   # y da fisica cresce para baixo
   coord_fixed() +
   facet_wrap(~politica) +
-  labs(title = "Onde a bola passa o tempo, por politica",
-       subtitle = "Densidade de posicoes da bola; escala de cor logaritmica",
-       x = "x (unidades da mesa)", y = "y (unidades da mesa)") +
-  theme_minimal(base_size = 11) +
-  theme(panel.grid = element_blank())
-ggsave("C:/Users/drian/Games/pinball_rl/analise/mapa_mesa.png", g,
-       width = 10, height = 5.2, dpi = 150)
-cat("mapa_mesa.png salvo\n")
+  labs(x = NULL, y = NULL,
+       title = "Onde a bola passa o tempo",
+       subtitle = "densidade de posições, escala logarítmica") +
+  tema_artigo() +
+  theme(axis.text.x = element_blank(), axis.text.y = element_blank(),
+        axis.ticks = element_blank(),
+        legend.position = "right", legend.title = element_text(size = 7),
+        legend.key.width = unit(7, "pt"), legend.key.height = unit(22, "pt"))
+
+salvar(g, "../artigo/img/mapa_mesa.png", "pagina", altura = 8.4)

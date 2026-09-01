@@ -1,0 +1,7 @@
+# Python side of the environment. The C++ module is built separately, see README.
+gymnasium>=0.29
+stable-baselines3>=2.0
+torch>=2.0
+numpy>=1.24
+pillow>=10.0          # frame capture for the GIFs
+scipy>=1.10           # Mann-Whitney in the comparison scripts
