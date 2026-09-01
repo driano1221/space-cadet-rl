@@ -1,21 +1,46 @@
-# Regenerate every figure used in the paper.
+# Regenera as figuras do artigo a partir dos dados versionados em data/paper/.
 #
-#     Rscript scripts/reproduce_figures.R
-#
-# Reads the raw evaluation data in analise/ and writes to artigo/img/.
-# No training required: the CSVs of the runs are in the repository.
-setwd(file.path(dirname(sys.frame(1)$ofile), "..", "analise"))
+# Os scripts de analise leem de analise/ e analise/dados/, que sao diretorios de
+# trabalho ignorados pelo git. Este script materializa os dados publicados
+# naqueles caminhos antes de rodar, para que um clone limpo funcione.
+raiz <- normalizePath(file.path(dirname(sys.frame(1)$ofile), ".."), mustWork = FALSE)
+if (!dir.exists(file.path(raiz, "analise"))) raiz <- normalizePath(".")
 
-fontes <- c("figuras_artigo.R",        # reaction curve, baseline, cliff, rank
-            "mapa_mesa.R",             # ball density per policy
-            "mesa_tacadas_claro.R")    # presses vs strikes over the table
+pacotes <- c("data.table", "ggplot2", "patchwork", "scales", "png", "jsonlite")
+faltando <- pacotes[!pacotes %in% rownames(installed.packages())]
+if (length(faltando)) {
+  stop("pacotes R ausentes: ", paste(faltando, collapse = ", "),
+       "\nrode: Rscript analise/install_packages.R")
+}
 
-for (f in fontes) {
-  if (file.exists(f)) {
-    message("running ", f)
-    source(f, local = new.env())
+origem <- file.path(raiz, "data", "paper")
+destino <- file.path(raiz, "analise")
+dir.create(file.path(destino, "dados"), showWarnings = FALSE, recursive = TRUE)
+
+for (f in list.files(origem, full.names = TRUE)) {
+  nome <- basename(f)
+  # os .gz sao descomprimidos; os scripts esperam .csv
+  alvo_dir <- if (nome %in% c("reacao.csv", "rank_medido.csv"))
+    file.path(destino, "dados") else destino
+  if (grepl("\.gz$", nome)) {
+    alvo <- file.path(alvo_dir, sub("\.gz$", "", nome))
+    if (!file.exists(alvo)) {
+      cat("descomprimindo", nome, "\n")
+      dados <- data.table::fread(f)
+      data.table::fwrite(dados, alvo)
+    }
   } else {
-    warning("missing: ", f)
+    alvo <- file.path(alvo_dir, nome)
+    if (!file.exists(alvo)) file.copy(f, alvo)
   }
 }
-message("figures written to artigo/img/")
+
+setwd(destino)
+scripts <- c("figuras_artigo.R", "mapa_mesa.R", "mesa_tacadas_claro.R", "eda_flip.R")
+for (s in scripts) {
+  if (file.exists(s)) {
+    cat("\n=== ", s, " ===\n", sep = "")
+    tryCatch(source(s), error = function(e) cat("  falhou:", conditionMessage(e), "\n"))
+  }
+}
+cat("\nfiguras em artigo/img/\n")

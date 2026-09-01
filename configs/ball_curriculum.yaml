@@ -1,0 +1,10 @@
+# ball_curriculum
+steps: 2500000
+tag: ball_curriculum
+envs: 6
+reward: score
+prediction: true
+progress: 0
+potential: 0
+novelty: 0
+balls: 6

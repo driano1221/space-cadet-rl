@@ -20,7 +20,7 @@ imports e caminhos a partir do proprio arquivo.
 | `treinar_visao_par.py` | o treinador principal. 14 argumentos posicionais - ver cabecalho do arquivo |
 | `treinar_opcoes.py`, `treinar_duplo.py` | treinadores do env de opcoes |
 | `fila_ideias.sh` | roda as cinco ideias em sequencia |
-| `apos_fila.sh` | dispara a coleta pareada quando a fila termina |
+| `apos_fila.sh` | dispara a coleta lado a lado quando a fila termina |
 
 `PINBALL_DEVICE=cpu` forca CPU. Checkpoints saem em `ckpt/` a cada 250k passos.
 
@@ -60,10 +60,15 @@ quatro treinos inuteis.
 |---|---|
 | `coletar_eda.py` | **o que vale**: N episodios completos por agente, em serie, gerando os CSVs. Detecta a dimensao da observacao pelo proprio modelo |
 | `sem_teto.py` | partidas sem limite de tempo |
-| `comparar_flip.py`, `duelo.py` | comparacoes pareadas com Mann-Whitney |
+| `comparar_flip.py`, `duelo.py` | comparacoes lado a lado com Mann-Whitney |
 | `clipes.py`, `clipes_opcoes.py` | GIFs com a tela real do jogo |
 | `goexplore.py` | arquivo de celulas e mapa da fronteira alcancada |
 | `jogar.py` | gravador de partidas humanas (pronto, nunca usado) |
 
-> A avaliacao **interna do treinador** (n=6, nao pareada) nao serve para comparar
+> A avaliacao **interna do treinador** (n=6) nao serve para comparar
 > agentes - ja induziu leitura errada tres vezes. Use `coletar_eda.py`.
+
+> **Nota sobre "pareado".** Versoes antigas destes textos chamavam as
+> comparacoes de pareadas. Nao sao: os episodios nao compartilham semente e
+> o teste usado e' Mann-Whitney entre amostras. O que se controla e' a
+> variancia entre execucoes, rodando os agentes em serie no mesmo processo.

@@ -5,3 +5,7 @@ torch>=2.0
 numpy>=1.24
 pillow>=10.0          # frame capture for the GIFs
 scipy>=1.10           # Mann-Whitney in the comparison scripts
+
+# build do artigo (opcional)
+pypandoc_binary>=1.13
+PyYAML>=6.0

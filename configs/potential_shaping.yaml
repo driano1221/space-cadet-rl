@@ -1,0 +1,10 @@
+# potential_shaping
+steps: 2500000
+tag: potential_shaping
+envs: 6
+reward: score
+prediction: true
+progress: 0
+potential: 10
+novelty: 0
+balls: 0

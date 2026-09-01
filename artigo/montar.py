@@ -14,7 +14,12 @@ import sys
 AQUI = os.path.dirname(os.path.abspath(__file__))
 CORE = os.path.join(AQUI, "core")
 SAIDA = os.path.join(AQUI, "saida")
-MIKTEX = r"C:\Users\drian\AppData\Local\Programs\MiKTeX\miktex\bin\x64"
+# caminho do pdflatex: variavel de ambiente, PATH, ou o local padrao do
+# MiKTeX no Windows. Sem isto, o build so' rodava nesta maquina.
+import shutil
+MIKTEX = (os.environ.get("MIKTEX_BIN")
+          or (os.path.dirname(shutil.which("pdflatex")) if shutil.which("pdflatex") else None)
+          or os.path.expandvars(r"%LOCALAPPDATA%\Programs\MiKTeX\miktexind"))
 
 RESUMO = (
     "Relato de quinze passos de experimento treinando um agente de aprendizado "

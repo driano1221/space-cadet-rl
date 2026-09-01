@@ -20,8 +20,23 @@ strategy.
 The Windows XP pinball game has a [C++ decompilation](https://github.com/k4zmu2a/SpaceCadetPinball)
 that compiles and runs. Instead of screen-scraping it, I instrumented it:
 
-1. **C++ hooks** into the physics loop expose ball position, velocity, score and
-   per-event counters (bumpers, ramps, medal targets, flipper strikes).
+```mermaid
+flowchart LR
+    DAT[PINBALL.DAT] --> GAME[Space Cadet C++ engine<br/>physics @ 120 Hz]
+    GAME --> INST[Instrumentation layer<br/>rlenv + event counters]
+    INST --> PYB[pybind11<br/>spacecadet_env]
+    PYB --> ENV[Gymnasium environment<br/>40 decisions/s]
+    ENV --> OBS[Observation<br/>9x36x28 grid + state vector]
+    OBS --> PPO[CNN + PPO<br/>Stable-Baselines3]
+    PPO -->|action| ENV
+    ENV --> EVAL[Evaluation<br/>score · duration · aim · latency]
+    EVAL --> R[R analysis<br/>statistics + figures]
+    R --> PAPER[Article]
+```
+
+1. **[C++ hooks](cpp/README.md)** into the physics loop expose ball position,
+   velocity, score and per-event counters (bumpers, ramps, medal targets,
+   flipper strikes).
 2. **pybind11** bindings surface that state to Python as a normal module.
 3. A **Gymnasium environment** wraps it, with the table rendered as a 9x36x28
    grid plus a state vector.
@@ -44,53 +59,81 @@ forbidding the flipper outside the region where it can actually reach the ball.
 **Trajectory prediction** raised it 16.6% (p = 0.0008). Neither improved the
 score.
 
-What did move was survival. Across all seven trained agents, **the ranking by
-score is identical to the ranking by episode duration**. In this game the table
-scores the points; the flippers only keep the ball alive, and a raised flipper
-works as a wall that needs no timing at all.
+That contradiction is the finding. Across all seven trained agents, **the
+ranking by score is identical to the ranking by episode duration**. In this game
+the table scores the points; the flippers only keep the ball alive, and a raised
+flipper works as a wall that needs no timing at all.
 
 **[Read the full story (PT-BR, 13 pages) →](https://driano1221.github.io/space-cadet-rl/)**
 
-The PDF also lives in this repository, at
-[docs/artigo.pdf](docs/artigo.pdf).
+The PDF also lives in this repository, at [docs/artigo.pdf](docs/artigo.pdf).
 
 ## Running it
 
-You need the original `PINBALL.DAT` from a Windows XP install (not
-redistributable, not included here).
-
-The instrumented fork lives at
-[driano1221/SpaceCadetPinball, branch `rl-instrumentation`](https://github.com/driano1221/SpaceCadetPinball/tree/rl-instrumentation).
+You need the original `PINBALL.DAT` from a Windows XP install. It is not
+redistributable and not included here.
 
 ```bash
-# 1. build the instrumented game (needs CMake and a C++17 compiler)
-cd SpaceCadetPinball && cmake -S . -B build && cmake --build build --config Release
+git clone https://github.com/driano1221/space-cadet-rl
+cd space-cadet-rl
 
-# 2. Python side
+# 1. the instrumented engine lives in its own repo, as a branch of the
+#    decompilation, so the diff against upstream stays readable
+git clone -b rl-instrumentation \
+  https://github.com/driano1221/SpaceCadetPinball.git SpaceCadetPinball
+
+# 2. build it WITH the Python module (off by default)
+pip install pybind11
+cd SpaceCadetPinball
+cmake -S . -B build -DBUILD_PYTHON_MODULE=ON \
+      -Dpybind11_DIR="$(python -m pybind11 --cmakedir)"
+cmake --build build --config Release
+cd ..
+
+# 3. put your PINBALL.DAT next to the built module
+cp /path/to/PINBALL.DAT SpaceCadetPinball/bin/
+
+# 4. Python side
 pip install -r requirements.txt
 
-# 3. evaluate a trained agent
-python scripts/evaluate.py --model ppo_c9_prever --episodes 10
+# 5. train (about 1h on a laptop GPU)
+python scripts/train.py --config configs/trajectory.yaml
 
-# 4. train from scratch (about 1h on a laptop GPU)
-python python/treinar_visao_par.py 2500000 my_tag 6 score 0 0 0 0 0 0 prever
+# 6. evaluate
+python scripts/evaluate.py --model ppo_trajectory --episodes 10
 
-# 5. regenerate every figure in the paper
+# 7. regenerate every figure in the article, from the data in data/paper/
+Rscript analise/install_packages.R
 Rscript scripts/reproduce_figures.R
 ```
+
+Trained policies are **not** in the repository (about 10 MB each). Train one
+with step 5, or grab `ppo_c9_prever.zip` from the
+[latest release](https://github.com/driano1221/space-cadet-rl/releases).
+
+Each experiment in the article has a config in [`configs/`](configs):
+`baseline`, `trajectory`, `potential_shaping`, `novelty`, `ball_curriculum`,
+`progress_shaping`.
 
 ## Repository layout
 
 ```
-python/          environment, trainers, self-checks and measurement scripts
-  spacecadet_gym.py    the Gym env (vision, prediction, zone mask, shaping)
-  treinar_*.py         trainers
-  teste_*.py           assert-based self-checks
-analise/         R scripts, figures, raw evaluation data
-scripts/         entry points for evaluation and figure reproduction
-docs/            the paper and its assets
-SpaceCadetPinball/   instrumented fork, see below
+cpp/              readable copy of the C++ instrumentation layer
+python/           Gymnasium env, CNN, training and measurement scripts
+analise/          R analysis, figures, evaluation data
+scripts/          user-facing entry points (train, evaluate, figures)
+configs/          one YAML per experiment in the article
+data/paper/       the exact data behind the article's figures
+artigo/           source of the 13-page article
+docs/             the PDF, its assets and the GitHub Pages redirect
+notes/            design decisions, plus archived development notes
+SpaceCadetPinball/  the instrumented fork (cloned locally, gitignored)
 ```
+
+Every field in the evaluation data is documented in the
+**[data dictionary](docs/data-dictionary.md)**, including units, provenance and
+the traps (which counters are cumulative, which is a balance, why two normalised
+axes must not be combined into a distance).
 
 ## Method notes
 
@@ -108,17 +151,20 @@ seeds, so these are not paired tests.
 
 - [k4zmu2a/SpaceCadetPinball](https://github.com/k4zmu2a/SpaceCadetPinball),
   the decompilation this whole project rests on (MIT)
-- [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3) for the PPO
-  implementation
+- Schulman et al., [Proximal Policy Optimization](https://arxiv.org/abs/1707.06347)
+  (2017), and [Stable-Baselines3](https://github.com/DLR-RM/stable-baselines3)
+  for the implementation
+- Ng, Harada and Russell, *Policy Invariance Under Reward Transformations*
+  (1999), for potential-based shaping
 - [ViZDoom](https://arxiv.org/abs/1605.02097), which established instrumenting
   open-source games for RL back in 2016
 - *Pinbot: Applying Reinforcement Learning to Pinball Machines* (CMU 16-831,
   2024), which independently hit the same two failure modes
 
 The game's artwork and `PINBALL.DAT` belong to Microsoft and Maxis. Screenshots
-here are used to document the experiments; no game asset is redistributed.
+here document the experiments; no game asset is redistributed.
 
 ## License
 
-MIT for the code in this repository. The instrumented fork keeps the original
-MIT license of the decompilation.
+[MIT](LICENSE) for the code in this repository. The instrumented fork keeps the
+original MIT license of the decompilation.

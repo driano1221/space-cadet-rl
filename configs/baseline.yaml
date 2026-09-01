@@ -1,0 +1,10 @@
+# baseline
+steps: 2500000
+tag: baseline
+envs: 6
+reward: score
+prediction: false
+progress: 0
+potential: 0
+novelty: 0
+balls: 0

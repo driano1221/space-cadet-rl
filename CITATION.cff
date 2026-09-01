@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: "Teaching an RL Agent to Play 3D Pinball Space Cadet"
+message: "If you reference this work, please cite it as below."
+type: software
+authors:
+  - given-names: Adriano
+    family-names: Pires Cunha
+    alias: driano1221
+repository-code: "https://github.com/driano1221/space-cadet-rl"
+url: "https://driano1221.github.io/space-cadet-rl/"
+abstract: >-
+  A reinforcement learning agent trained on the original 3D Pinball Space Cadet
+  engine, instrumented in C++ rather than screen-scraped. The agent reaches 4.3x
+  a random policy, but drops to 0.62x once its actions carry 250 ms of latency,
+  showing its advantage is high-frequency reactive control rather than strategy.
+keywords:
+  - reinforcement-learning
+  - ppo
+  - game-ai
+  - reverse-engineering
+license: MIT
+date-released: "2026-08-31"
