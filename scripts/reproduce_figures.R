@@ -23,7 +23,7 @@ if (!dir.exists(file.path(raiz, "analise"))) {
 }
 
 pacotes <- c("data.table", "ggplot2", "patchwork", "scales", "png",
-             "jsonlite", "ggrepel", "dplyr", "tidyr")
+             "jsonlite", "ggrepel", "tidyverse")
 faltando <- pacotes[!pacotes %in% rownames(installed.packages())]
 if (length(faltando)) {
   stop("pacotes R ausentes: ", paste(faltando, collapse = ", "),
@@ -49,12 +49,13 @@ for (f in list.files(origem, full.names = TRUE)) {
     destino
   }
   alvo <- file.path(alvo_dir, nome_final)
-  if (file.exists(alvo)) next
+  # sempre sobrescreve: data/paper/ e' a fonte canonica, e uma copia de trabalho
+  # mais antiga em analise/ nao pode vencer a publicada
   if (grepl(gz, nome)) {
     cat("descomprimindo", nome, "\n")
     data.table::fwrite(data.table::fread(f), alvo)
   } else {
-    file.copy(f, alvo)
+    file.copy(f, alvo, overwrite = TRUE)
   }
 }
 

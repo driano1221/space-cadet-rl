@@ -60,7 +60,7 @@ Uma linha por episodio completo.
 
 ## `analise/eda_acionamentos.csv`
 
-Uma linha por acionamento individual (284.494 na ultima coleta).
+Uma linha por acionamento individual (413.978 na coleta dos sete agentes).
 
 | Coluna | Nota |
 |---|---|

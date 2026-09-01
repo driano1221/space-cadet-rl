@@ -112,7 +112,7 @@ Trained policies are **not** in the repository (about 10 MB each). Train one
 with step 5, or grab `ppo_c9_prever.zip` from the
 [latest release](https://github.com/driano1221/space-cadet-rl/releases).
 
-Each experiment in the article has a config in [`configs/`](configs):
+The main final-round training variants have configs in [`configs/`](configs):
 `baseline`, `trajectory`, `potential_shaping`, `novelty`, `ball_curriculum`,
 `progress_shaping`.
 

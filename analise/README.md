@@ -12,7 +12,7 @@ pasta: `Rscript eda_flip.R`.
 | `tacadas_tela.csv` | acionamentos em coordenadas de tela, para os mapas sobre o tabuleiro |
 | `zona_flipper.json` | zona de tacada em celulas de 10 px, por flipper |
 
-Campos e unidades em [../docs-ai/DICIONARIO.md](../docs-ai/DICIONARIO.md).
+Campos e unidades em [../docs/data-dictionary.md](../docs/data-dictionary.md).
 
 ## Scripts
 

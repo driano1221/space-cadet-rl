@@ -31,3 +31,12 @@ artigo/saida/_*
 artigo/saida/paginas/
 analise/_*.R
 analise/_*.log
+
+# os dados canonicos vivem em data/paper/; estes sao copias de trabalho
+# materializadas por scripts/reproduce_figures.R
+analise/eda_acionamentos.csv
+analise/eda_episodios.csv
+analise/tacadas_tela.csv
+
+# modelos treinados salvos na raiz pelo scripts/train.py
+ppo_*.zip

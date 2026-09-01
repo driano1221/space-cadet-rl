@@ -1,10 +1,14 @@
 # Space Cadet como ambiente de RL
 
+> **Onde esta o estado atual:** leia `README.md` e `notes/DECISIONS.md`.
+> `notes/archive/` guarda notas historicas de desenvolvimento que **nao**
+> sao mantidas e contem afirmacoes superadas por achados posteriores.
+
 Experimento de engenharia reversa + RL sobre o *3D Pinball for Windows - Space
 Cadet*. O jogo foi instrumentado para gerar dados e treinar agentes.
 
-**Antes de editar qualquer coisa, leia `docs-ai/HANDOFF.md` e
-`docs-ai/PROXIMOS_PASSOS.md`.** Eles trazem o estado atual, a ordem acordada dos
+**Antes de editar qualquer coisa, leia `notes/DECISIONS.md` e
+`README.md`.** Eles trazem o estado atual, a ordem acordada dos
 proximos passos e as regras de pontuacao do jogo.
 
 ## Estrutura
@@ -13,7 +17,7 @@ proximos passos e as regras de pontuacao do jogo.
 SpaceCadetPinball/   fork instrumentado (repo proprio, branch rl-instrumentation)
 python/              ambiente Gymnasium, visao, CNN, treinos
 analise/             scripts R e Python de validacao
-docs-ai/             contexto: BRIEF, DECISIONS, CURRENT_STATE, HANDOFF, PROXIMOS_PASSOS
+notes/             contexto: BRIEF, DECISIONS, CURRENT_STATE, HANDOFF, PROXIMOS_PASSOS
 ```
 
 Sao **dois repositorios git**: o fork mantem a linhagem com o upstream do
