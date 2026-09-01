@@ -44,12 +44,18 @@ score is identical to the ranking by episode duration**. In this game the table
 scores the points; the flippers only keep the ball alive, and a raised flipper
 works as a wall that needs no timing at all.
 
-**[Read the full story (PT-BR, 13 pages) →](docs/artigo.pdf)**
+**[Read the full story (PT-BR, 13 pages) →](https://driano1221.github.io/space-cadet-rl/)**
+
+The PDF also lives in this repository, at
+[docs/artigo.pdf](docs/artigo.pdf).
 
 ## Running it
 
 You need the original `PINBALL.DAT` from a Windows XP install (not
 redistributable, not included here).
+
+The instrumented fork lives at
+[driano1221/SpaceCadetPinball, branch `rl-instrumentation`](https://github.com/driano1221/SpaceCadetPinball/tree/rl-instrumentation).
 
 ```bash
 # 1. build the instrumented game (needs CMake and a C++17 compiler)
@@ -78,7 +84,7 @@ python/          environment, trainers, self-checks and measurement scripts
 analise/         R scripts, figures, raw evaluation data
 scripts/         entry points for evaluation and figure reproduction
 docs/            the paper and its assets
-SpaceCadetPinball/   instrumented fork (own repo, MIT, branch rl-instrumentation)
+SpaceCadetPinball/   instrumented fork, see below
 ```
 
 ## Method notes
