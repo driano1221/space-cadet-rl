@@ -1,4 +1,13 @@
 %% Fonte do diagrama em docs/architecture.png.
-%% Renderiza em https://mermaid.live para editar e regerar.
+%% Cole em https://mermaid.live para editar e regerar.
 flowchart LR
-    DAT[PINBALL.DAT]
+    DAT[PINBALL.DAT] --> GAME[Space Cadet C++ engine<br/>physics @ 120 Hz]
+    GAME --> INST[Instrumentation layer<br/>rlenv + event counters]
+    INST --> PYB[pybind11<br/>spacecadet_env]
+    PYB --> ENV[Gymnasium environment<br/>40 decisions/s]
+    ENV --> OBS[Observation<br/>9x36x28 grid + state vector]
+    OBS --> PPO[CNN + PPO<br/>Stable-Baselines3]
+    PPO -->|action| ENV
+    ENV --> EVAL[Evaluation<br/>score · duration · aim · latency]
+    EVAL --> R[R analysis<br/>statistics + figures]
+    R --> PAPER[Article]
