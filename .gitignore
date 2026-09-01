@@ -21,3 +21,13 @@ analise/*.npz
 !docs/*.pdf
 !docs/*.png
 !docs/*.gif
+
+# scripts de correcao pontual do artigo e artefatos do LaTeX
+artigo/_*.py
+artigo/saida/*.aux
+artigo/saida/*.log
+artigo/saida/*.out
+artigo/saida/_*
+artigo/saida/paginas/
+analise/_*.R
+analise/_*.log
